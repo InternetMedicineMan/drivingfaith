@@ -8,4 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class ComingSoonEmail extends Model
 {
     use HasFactory;
+
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'email',
+    ];
 }

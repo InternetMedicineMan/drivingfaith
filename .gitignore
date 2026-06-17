@@ -22,3 +22,8 @@ yarn-error.log
 lang/php_*.json
 .DS_Store
 **/.DS_Store
+
+/integrations/**/.venv/
+/integrations/**/__pycache__/
+/integrations/**/*.pyc
+/integrations/**/.pytest_cache/

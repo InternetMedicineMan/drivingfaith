@@ -1,0 +1,13 @@
+[mcp_servers.herd]
+args = ["/Applications/Herd.app/Contents/Resources/herd-mcp.phar"]
+command = "php"
+
+[mcp_servers.herd.env]
+SITE_PATH = "/Users/sergeykarakhanyan/Projects/larafast-vilt"
+
+[mcp_servers.laravel-boost]
+args = [
+    "artisan",
+    "boost:mcp",
+]
+command = "php"

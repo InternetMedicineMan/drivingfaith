@@ -1,8 +1,8 @@
 @php
-    $title = 'Your default title goes here';
-    $description = 'Your default description goes here';
-    $image = 'your-default-image-url.jpg';
-    $keywords = 'your, default, keywords, goes, here';
+    $title = 'DrivingFaith';
+    $description = 'A calm back office for churches managing people, events, communication, governance, and outreach.';
+    $image = asset('images/drivingfaith-icon-square.png');
+    $keywords = 'church management, ministry software, church events, member directory, church communication';
     $canonical = request()->url();
 @endphp
 

@@ -14,6 +14,13 @@ class HomeController extends Controller
         return Inertia::render('Home', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
+            'seo' => [
+                'title' => 'DrivingFaith - Run your whole church from one place',
+                'description' => 'DrivingFaith is the back-office platform built for churches. Manage people, communication, events, governance, and outreach in one calm, integrated system.',
+                'keywords' => 'church management, ministry software, church events, member directory, church waitlist',
+                'image' => asset('images/drivingfaith-icon-square.png'),
+                'canonical' => $request->url(),
+            ],
         ]);
     }
 }
