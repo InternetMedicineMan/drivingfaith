@@ -1,0 +1,193 @@
+<?php
+
+use App\Models\Team;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+uses(RefreshDatabase::class);
+
+it('creates the bible study mailing schema', function () {
+    expect(Schema::hasTable('mailing_campaigns'))->toBeTrue()
+        ->and(Schema::hasColumns('mailing_campaigns', [
+            'team_id',
+            'name',
+            'slug',
+            'source_key',
+            'status',
+        ]))->toBeTrue()
+        ->and(Schema::hasTable('mailing_content_templates'))->toBeTrue()
+        ->and(Schema::hasColumns('mailing_content_templates', [
+            'team_id',
+            'type',
+            'name',
+            'provider_template_id',
+            'html_content',
+        ]))->toBeTrue()
+        ->and(Schema::hasTable('campaign_mailings'))->toBeTrue()
+        ->and(Schema::hasColumns('campaign_mailings', [
+            'campaign_id',
+            'sequence',
+            'delay_days_after_previous',
+            'pause_until_reply',
+            'cover_letter_template_id',
+            'bible_study_template_id',
+            'provider_template_id',
+        ]))->toBeTrue()
+        ->and(Schema::hasTable('campaign_mailing_pages'))->toBeTrue()
+        ->and(Schema::hasColumns('campaign_mailing_pages', [
+            'campaign_mailing_id',
+            'page_number',
+            'html_path',
+            'html_content',
+        ]))->toBeTrue()
+        ->and(Schema::hasTable('mailing_contacts'))->toBeTrue()
+        ->and(Schema::hasTable('campaign_enrollments'))->toBeTrue()
+        ->and(Schema::hasColumns('campaign_enrollments', [
+            'reply_required_by_mailing_id',
+            'reply_required_at',
+            'reply_received_at',
+        ]))->toBeTrue()
+        ->and(Schema::hasTable('enrollment_mailings'))->toBeTrue()
+        ->and(Schema::hasColumns('enrollment_mailings', [
+            'campaign_enrollment_id',
+            'campaign_mailing_id',
+            'cover_letter_template_id',
+            'bible_study_template_id',
+            'override_cover_letter_template_id',
+            'override_cover_letter_html',
+            'rendered_html',
+        ]))->toBeTrue()
+        ->and(Schema::hasTable('mailing_deliveries'))->toBeTrue()
+        ->and(Schema::hasTable('campaign_replies'))->toBeTrue();
+});
+
+it('stores campaign enrollment and delivery state', function () {
+    $team = Team::factory()->create();
+
+    $campaignId = DB::table('mailing_campaigns')->insertGetId([
+        'team_id' => $team->id,
+        'name' => 'Romans Bible Study',
+        'slug' => 'romans-bible-study',
+        'source_key' => 'romans-2026',
+        'status' => 'active',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $coverTemplateId = DB::table('mailing_content_templates')->insertGetId([
+        'team_id' => $team->id,
+        'type' => 'cover_letter',
+        'name' => 'Default Cover Letter',
+        'slug' => 'default-cover-letter',
+        'status' => 'active',
+        'html_content' => '<html><body>Hello {{ first_name }}</body></html>',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $bibleStudyTemplateId = DB::table('mailing_content_templates')->insertGetId([
+        'team_id' => $team->id,
+        'type' => 'bible_study',
+        'name' => 'Romans Lesson 1',
+        'slug' => 'romans-lesson-1',
+        'status' => 'active',
+        'html_content' => '<html><body>Romans study content</body></html>',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $mailingId = DB::table('campaign_mailings')->insertGetId([
+        'campaign_id' => $campaignId,
+        'name' => 'Lesson 1',
+        'sequence' => 1,
+        'pause_until_reply' => true,
+        'cover_letter_template_id' => $coverTemplateId,
+        'bible_study_template_id' => $bibleStudyTemplateId,
+        'status' => 'active',
+        'provider_template_id' => 'tmpl_lesson_1',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('campaign_mailing_pages')->insert([
+        'campaign_mailing_id' => $mailingId,
+        'page_number' => 1,
+        'name' => 'Cover Letter',
+        'html_content' => '<html><body>Welcome</body></html>',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $contactId = DB::table('mailing_contacts')->insertGetId([
+        'team_id' => $team->id,
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'address1' => '123 Example St',
+        'city' => 'Nashville',
+        'state' => 'TN',
+        'zip' => '37201',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $enrollmentId = DB::table('campaign_enrollments')->insertGetId([
+        'team_id' => $team->id,
+        'campaign_id' => $campaignId,
+        'mailing_contact_id' => $contactId,
+        'status' => 'active',
+        'next_mailing_id' => $mailingId,
+        'next_send_on' => now()->toDateString(),
+        'current_sequence' => 1,
+        'reply_required_by_mailing_id' => $mailingId,
+        'reply_required_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $enrollmentMailingId = DB::table('enrollment_mailings')->insertGetId([
+        'team_id' => $team->id,
+        'campaign_enrollment_id' => $enrollmentId,
+        'campaign_mailing_id' => $mailingId,
+        'mailing_contact_id' => $contactId,
+        'sequence' => 1,
+        'status' => 'planned',
+        'scheduled_for' => now()->toDateString(),
+        'cover_letter_template_id' => $coverTemplateId,
+        'bible_study_template_id' => $bibleStudyTemplateId,
+        'override_cover_letter_html' => '<html><body>Custom one-time note</body></html>',
+        'cover_letter_override_reason' => 'Personal pastoral follow-up.',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('mailing_deliveries')->insert([
+        'team_id' => $team->id,
+        'campaign_enrollment_id' => $enrollmentId,
+        'enrollment_mailing_id' => $enrollmentMailingId,
+        'campaign_mailing_id' => $mailingId,
+        'mailing_contact_id' => $contactId,
+        'status' => 'queued',
+        'scheduled_for' => now()->toDateString(),
+        'idempotency_key' => 'campaign-1:enrollment-1:mailing-1',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('campaign_replies')->insert([
+        'team_id' => $team->id,
+        'campaign_enrollment_id' => $enrollmentId,
+        'enrollment_mailing_id' => $enrollmentMailingId,
+        'campaign_mailing_id' => $mailingId,
+        'mailing_contact_id' => $contactId,
+        'channel' => 'mail',
+        'summary' => 'Returned lesson response card.',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    expect(DB::table('campaign_enrollments')->where('status', 'active')->count())->toBe(1)
+        ->and(DB::table('enrollment_mailings')->whereNotNull('override_cover_letter_html')->count())->toBe(1)
+        ->and(DB::table('mailing_deliveries')->where('status', 'queued')->count())->toBe(1)
+        ->and(DB::table('campaign_replies')->count())->toBe(1);
+});
