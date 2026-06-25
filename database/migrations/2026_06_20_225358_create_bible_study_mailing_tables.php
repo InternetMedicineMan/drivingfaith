@@ -156,7 +156,7 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            $table->unique(['campaign_enrollment_id', 'campaign_mailing_id']);
+            $table->unique(['campaign_enrollment_id', 'campaign_mailing_id'], 'enroll_mailings_enrollment_mailing_unique');
             $table->index(['team_id', 'status', 'scheduled_for']);
             $table->index(['campaign_enrollment_id', 'sequence']);
         });
@@ -181,7 +181,7 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            $table->unique(['campaign_enrollment_id', 'campaign_mailing_id']);
+            $table->unique(['campaign_enrollment_id', 'campaign_mailing_id'], 'mail_deliveries_enrollment_mailing_unique');
             $table->index(['team_id', 'status']);
             $table->index(['status', 'scheduled_for']);
             $table->index(['provider', 'provider_id']);
