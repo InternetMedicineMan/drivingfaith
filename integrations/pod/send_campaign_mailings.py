@@ -46,20 +46,20 @@ def fetch_due_mailings(conn, limit, campaign_id=None):
             cover_templates.html_content AS cover_letter_html,
             override_cover_templates.html_content AS override_cover_letter_template_html,
             bible_study_templates.html_content AS bible_study_html
-        FROM enrollment_mailings planned
-        INNER JOIN campaign_enrollments enrollments
+        FROM pod_enrollment_mailings planned
+        INNER JOIN pod_campaign_enrollments enrollments
             ON enrollments.id = planned.campaign_enrollment_id
-        INNER JOIN mailing_contacts contacts
+        INNER JOIN pod_contacts contacts
             ON contacts.id = planned.mailing_contact_id
-        INNER JOIN mailing_campaigns campaigns
+        INNER JOIN pod_campaigns campaigns
             ON campaigns.id = enrollments.campaign_id
-        INNER JOIN campaign_mailings mailings
+        INNER JOIN pod_campaign_mailings mailings
             ON mailings.id = planned.campaign_mailing_id
-        LEFT JOIN mailing_content_templates cover_templates
+        LEFT JOIN pod_content_templates cover_templates
             ON cover_templates.id = planned.cover_letter_template_id
-        LEFT JOIN mailing_content_templates override_cover_templates
+        LEFT JOIN pod_content_templates override_cover_templates
             ON override_cover_templates.id = planned.override_cover_letter_template_id
-        LEFT JOIN mailing_content_templates bible_study_templates
+        LEFT JOIN pod_content_templates bible_study_templates
             ON bible_study_templates.id = planned.bible_study_template_id
         WHERE enrollments.status = 'active'
             AND campaigns.status = 'active'
@@ -90,7 +90,7 @@ def fetch_enrollment(conn, enrollment_id):
     cursor.execute(
         """
         SELECT *
-        FROM campaign_enrollments
+        FROM pod_campaign_enrollments
         WHERE id = %s
         """,
         (enrollment_id,),
@@ -103,7 +103,7 @@ def fetch_enrollments_for_campaign(conn, campaign_id):
     cursor.execute(
         """
         SELECT id
-        FROM campaign_enrollments
+        FROM pod_campaign_enrollments
         WHERE campaign_id = %s
         ORDER BY id
         """,
@@ -112,12 +112,12 @@ def fetch_enrollments_for_campaign(conn, campaign_id):
     return cursor.fetchall()
 
 
-def fetch_campaign_mailings(conn, campaign_id):
+def fetch_pod_campaign_mailings(conn, campaign_id):
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
         """
         SELECT *
-        FROM campaign_mailings
+        FROM pod_campaign_mailings
         WHERE campaign_id = %s
             AND status = 'active'
         ORDER BY sequence
@@ -132,8 +132,8 @@ def fetch_next_planned_mailing(conn, enrollment_id, current_sequence):
     cursor.execute(
         """
         SELECT planned.id, planned.campaign_mailing_id, planned.sequence, mailings.delay_days_after_previous
-        FROM enrollment_mailings planned
-        INNER JOIN campaign_mailings mailings
+        FROM pod_enrollment_mailings planned
+        INNER JOIN pod_campaign_mailings mailings
             ON mailings.id = planned.campaign_mailing_id
         WHERE planned.campaign_enrollment_id = %s
             AND planned.sequence > %s
@@ -159,13 +159,13 @@ def fetch_enrollment_for_reply(conn, enrollment_id):
             next_planned.id AS next_enrollment_mailing_id,
             next_mailings.delay_days_after_previous,
             reply_planned.id AS reply_required_by_enrollment_mailing_id
-        FROM campaign_enrollments enrollments
-        LEFT JOIN enrollment_mailings next_planned
+        FROM pod_campaign_enrollments enrollments
+        LEFT JOIN pod_enrollment_mailings next_planned
             ON next_planned.campaign_enrollment_id = enrollments.id
             AND next_planned.campaign_mailing_id = enrollments.next_mailing_id
-        LEFT JOIN campaign_mailings next_mailings
+        LEFT JOIN pod_campaign_mailings next_mailings
             ON next_mailings.id = enrollments.next_mailing_id
-        LEFT JOIN enrollment_mailings reply_planned
+        LEFT JOIN pod_enrollment_mailings reply_planned
             ON reply_planned.campaign_enrollment_id = enrollments.id
             AND reply_planned.campaign_mailing_id = enrollments.reply_required_by_mailing_id
         WHERE enrollments.id = %s
@@ -180,7 +180,7 @@ def plan_enrollment(conn, enrollment_id):
     if enrollment is None:
         raise RuntimeError(f"Enrollment {enrollment_id} was not found.")
 
-    mailings = fetch_campaign_mailings(conn, enrollment["campaign_id"])
+    mailings = fetch_pod_campaign_mailings(conn, enrollment["campaign_id"])
     cursor = conn.cursor()
 
     for mailing in mailings:
@@ -190,7 +190,7 @@ def plan_enrollment(conn, enrollment_id):
 
         cursor.execute(
             """
-            INSERT IGNORE INTO enrollment_mailings (
+            INSERT IGNORE INTO pod_enrollment_mailings (
                 team_id,
                 campaign_enrollment_id,
                 campaign_mailing_id,
@@ -270,7 +270,7 @@ def save_rendered_html(conn, enrollment_mailing_id, rendered_html):
     cursor = conn.cursor()
     cursor.execute(
         """
-        UPDATE enrollment_mailings
+        UPDATE pod_enrollment_mailings
         SET rendered_html = %s,
             rendered_at = NOW(),
             updated_at = NOW()
@@ -291,7 +291,7 @@ def ensure_delivery(conn, row):
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
         """
-        INSERT IGNORE INTO mailing_deliveries (
+        INSERT IGNORE INTO pod_deliveries (
             team_id,
             campaign_enrollment_id,
             enrollment_mailing_id,
@@ -321,7 +321,7 @@ def ensure_delivery(conn, row):
     cursor.execute(
         """
         SELECT *
-        FROM mailing_deliveries
+        FROM pod_deliveries
         WHERE idempotency_key = %s
         """,
         (idempotency_key,),
@@ -333,7 +333,7 @@ def mark_delivery_sent(conn, row, delivery_id, provider_id):
     cursor = conn.cursor()
     cursor.execute(
         """
-        UPDATE mailing_deliveries
+        UPDATE pod_deliveries
         SET status = 'sent',
             provider_id = %s,
             sent_at = NOW(),
@@ -347,7 +347,7 @@ def mark_delivery_sent(conn, row, delivery_id, provider_id):
     )
     cursor.execute(
         """
-        UPDATE enrollment_mailings
+        UPDATE pod_enrollment_mailings
         SET status = 'sent',
             sent_at = NOW(),
             updated_at = NOW()
@@ -362,7 +362,7 @@ def mark_delivery_failed(conn, row, delivery_id, error_message):
     cursor = conn.cursor()
     cursor.execute(
         """
-        UPDATE mailing_deliveries
+        UPDATE pod_deliveries
         SET status = 'failed',
             failed_at = NOW(),
             error_message = %s,
@@ -374,7 +374,7 @@ def mark_delivery_failed(conn, row, delivery_id, error_message):
     )
     cursor.execute(
         """
-        UPDATE enrollment_mailings
+        UPDATE pod_enrollment_mailings
         SET status = 'failed',
             updated_at = NOW()
         WHERE id = %s
@@ -391,7 +391,7 @@ def advance_enrollment(conn, row):
     if row["pause_until_reply"]:
         cursor.execute(
             """
-            UPDATE campaign_enrollments
+            UPDATE pod_campaign_enrollments
             SET status = 'waiting_for_reply',
                 current_sequence = %s,
                 next_mailing_id = %s,
@@ -412,7 +412,7 @@ def advance_enrollment(conn, row):
     elif next_mailing is None:
         cursor.execute(
             """
-            UPDATE campaign_enrollments
+            UPDATE pod_campaign_enrollments
             SET status = 'completed',
                 completed_at = NOW(),
                 next_mailing_id = NULL,
@@ -426,7 +426,7 @@ def advance_enrollment(conn, row):
         next_send_on = date.today() + timedelta(days=next_mailing["delay_days_after_previous"])
         cursor.execute(
             """
-            UPDATE campaign_enrollments
+            UPDATE pod_campaign_enrollments
             SET current_sequence = %s,
                 next_mailing_id = %s,
                 next_send_on = %s,
@@ -442,7 +442,7 @@ def advance_enrollment(conn, row):
         )
         cursor.execute(
             """
-            UPDATE enrollment_mailings
+            UPDATE pod_enrollment_mailings
             SET scheduled_for = %s,
                 updated_at = NOW()
             WHERE id = %s
@@ -465,7 +465,7 @@ def record_reply(conn, enrollment_id, channel, summary, resume_on=None):
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO campaign_replies (
+        INSERT INTO pod_replies (
             team_id,
             campaign_enrollment_id,
             enrollment_mailing_id,
@@ -491,7 +491,7 @@ def record_reply(conn, enrollment_id, channel, summary, resume_on=None):
     if enrollment["next_mailing_id"] is None:
         cursor.execute(
             """
-            UPDATE campaign_enrollments
+            UPDATE pod_campaign_enrollments
             SET status = 'completed',
                 completed_at = NOW(),
                 reply_received_at = NOW(),
@@ -503,7 +503,7 @@ def record_reply(conn, enrollment_id, channel, summary, resume_on=None):
     else:
         cursor.execute(
             """
-            UPDATE campaign_enrollments
+            UPDATE pod_campaign_enrollments
             SET status = 'active',
                 next_send_on = %s,
                 reply_received_at = NOW(),
@@ -514,7 +514,7 @@ def record_reply(conn, enrollment_id, channel, summary, resume_on=None):
         )
         cursor.execute(
             """
-            UPDATE enrollment_mailings
+            UPDATE pod_enrollment_mailings
             SET scheduled_for = %s,
                 updated_at = NOW()
             WHERE id = %s

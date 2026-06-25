@@ -8,24 +8,24 @@ use Illuminate\Support\Facades\Schema;
 uses(RefreshDatabase::class);
 
 it('creates the bible study mailing schema', function () {
-    expect(Schema::hasTable('mailing_campaigns'))->toBeTrue()
-        ->and(Schema::hasColumns('mailing_campaigns', [
+    expect(Schema::hasTable('pod_campaigns'))->toBeTrue()
+        ->and(Schema::hasColumns('pod_campaigns', [
             'team_id',
             'name',
             'slug',
             'source_key',
             'status',
         ]))->toBeTrue()
-        ->and(Schema::hasTable('mailing_content_templates'))->toBeTrue()
-        ->and(Schema::hasColumns('mailing_content_templates', [
+        ->and(Schema::hasTable('pod_content_templates'))->toBeTrue()
+        ->and(Schema::hasColumns('pod_content_templates', [
             'team_id',
             'type',
             'name',
             'provider_template_id',
             'html_content',
         ]))->toBeTrue()
-        ->and(Schema::hasTable('campaign_mailings'))->toBeTrue()
-        ->and(Schema::hasColumns('campaign_mailings', [
+        ->and(Schema::hasTable('pod_campaign_mailings'))->toBeTrue()
+        ->and(Schema::hasColumns('pod_campaign_mailings', [
             'campaign_id',
             'sequence',
             'delay_days_after_previous',
@@ -34,22 +34,22 @@ it('creates the bible study mailing schema', function () {
             'bible_study_template_id',
             'provider_template_id',
         ]))->toBeTrue()
-        ->and(Schema::hasTable('campaign_mailing_pages'))->toBeTrue()
-        ->and(Schema::hasColumns('campaign_mailing_pages', [
+        ->and(Schema::hasTable('pod_campaign_mailing_pages'))->toBeTrue()
+        ->and(Schema::hasColumns('pod_campaign_mailing_pages', [
             'campaign_mailing_id',
             'page_number',
             'html_path',
             'html_content',
         ]))->toBeTrue()
-        ->and(Schema::hasTable('mailing_contacts'))->toBeTrue()
-        ->and(Schema::hasTable('campaign_enrollments'))->toBeTrue()
-        ->and(Schema::hasColumns('campaign_enrollments', [
+        ->and(Schema::hasTable('pod_contacts'))->toBeTrue()
+        ->and(Schema::hasTable('pod_campaign_enrollments'))->toBeTrue()
+        ->and(Schema::hasColumns('pod_campaign_enrollments', [
             'reply_required_by_mailing_id',
             'reply_required_at',
             'reply_received_at',
         ]))->toBeTrue()
-        ->and(Schema::hasTable('enrollment_mailings'))->toBeTrue()
-        ->and(Schema::hasColumns('enrollment_mailings', [
+        ->and(Schema::hasTable('pod_enrollment_mailings'))->toBeTrue()
+        ->and(Schema::hasColumns('pod_enrollment_mailings', [
             'campaign_enrollment_id',
             'campaign_mailing_id',
             'cover_letter_template_id',
@@ -58,14 +58,14 @@ it('creates the bible study mailing schema', function () {
             'override_cover_letter_html',
             'rendered_html',
         ]))->toBeTrue()
-        ->and(Schema::hasTable('mailing_deliveries'))->toBeTrue()
-        ->and(Schema::hasTable('campaign_replies'))->toBeTrue();
+        ->and(Schema::hasTable('pod_deliveries'))->toBeTrue()
+        ->and(Schema::hasTable('pod_replies'))->toBeTrue();
 });
 
 it('stores campaign enrollment and delivery state', function () {
     $team = Team::factory()->create();
 
-    $campaignId = DB::table('mailing_campaigns')->insertGetId([
+    $campaignId = DB::table('pod_campaigns')->insertGetId([
         'team_id' => $team->id,
         'name' => 'Romans Bible Study',
         'slug' => 'romans-bible-study',
@@ -75,7 +75,7 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    $coverTemplateId = DB::table('mailing_content_templates')->insertGetId([
+    $coverTemplateId = DB::table('pod_content_templates')->insertGetId([
         'team_id' => $team->id,
         'type' => 'cover_letter',
         'name' => 'Default Cover Letter',
@@ -86,7 +86,7 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    $bibleStudyTemplateId = DB::table('mailing_content_templates')->insertGetId([
+    $bibleStudyTemplateId = DB::table('pod_content_templates')->insertGetId([
         'team_id' => $team->id,
         'type' => 'bible_study',
         'name' => 'Romans Lesson 1',
@@ -97,7 +97,7 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    $mailingId = DB::table('campaign_mailings')->insertGetId([
+    $mailingId = DB::table('pod_campaign_mailings')->insertGetId([
         'campaign_id' => $campaignId,
         'name' => 'Lesson 1',
         'sequence' => 1,
@@ -110,7 +110,7 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    DB::table('campaign_mailing_pages')->insert([
+    DB::table('pod_campaign_mailing_pages')->insert([
         'campaign_mailing_id' => $mailingId,
         'page_number' => 1,
         'name' => 'Cover Letter',
@@ -119,7 +119,7 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    $contactId = DB::table('mailing_contacts')->insertGetId([
+    $contactId = DB::table('pod_contacts')->insertGetId([
         'team_id' => $team->id,
         'first_name' => 'Ada',
         'last_name' => 'Lovelace',
@@ -131,7 +131,7 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    $enrollmentId = DB::table('campaign_enrollments')->insertGetId([
+    $enrollmentId = DB::table('pod_campaign_enrollments')->insertGetId([
         'team_id' => $team->id,
         'campaign_id' => $campaignId,
         'mailing_contact_id' => $contactId,
@@ -145,7 +145,7 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    $enrollmentMailingId = DB::table('enrollment_mailings')->insertGetId([
+    $enrollmentMailingId = DB::table('pod_enrollment_mailings')->insertGetId([
         'team_id' => $team->id,
         'campaign_enrollment_id' => $enrollmentId,
         'campaign_mailing_id' => $mailingId,
@@ -161,7 +161,7 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    DB::table('mailing_deliveries')->insert([
+    DB::table('pod_deliveries')->insert([
         'team_id' => $team->id,
         'campaign_enrollment_id' => $enrollmentId,
         'enrollment_mailing_id' => $enrollmentMailingId,
@@ -174,7 +174,7 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    DB::table('campaign_replies')->insert([
+    DB::table('pod_replies')->insert([
         'team_id' => $team->id,
         'campaign_enrollment_id' => $enrollmentId,
         'enrollment_mailing_id' => $enrollmentMailingId,
@@ -186,8 +186,8 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    expect(DB::table('campaign_enrollments')->where('status', 'active')->count())->toBe(1)
-        ->and(DB::table('enrollment_mailings')->whereNotNull('override_cover_letter_html')->count())->toBe(1)
-        ->and(DB::table('mailing_deliveries')->where('status', 'queued')->count())->toBe(1)
-        ->and(DB::table('campaign_replies')->count())->toBe(1);
+    expect(DB::table('pod_campaign_enrollments')->where('status', 'active')->count())->toBe(1)
+        ->and(DB::table('pod_enrollment_mailings')->whereNotNull('override_cover_letter_html')->count())->toBe(1)
+        ->and(DB::table('pod_deliveries')->where('status', 'queued')->count())->toBe(1)
+        ->and(DB::table('pod_replies')->count())->toBe(1);
 });
