@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/Profile/ApplicationMark.vue';
 import Banner from '@/Components/Profile/Banner.vue';
 import Dropdown from '@/Components/Profile/Dropdown.vue';
@@ -13,6 +13,12 @@ defineProps({
 });
 
 const showingNavigationDropdown = ref(false);
+const page = usePage();
+
+const currentTeam = computed(() => page.props.auth.user.current_team);
+const teams = computed(() => page.props.auth.user.all_teams ?? []);
+const hasCurrentTeam = computed(() => Boolean(currentTeam.value));
+const teamSwitcherLabel = computed(() => currentTeam.value?.name ?? 'No team selected');
 
 const switchToTeam = (team) => {
     router.put(route('current-team.update'), {
@@ -61,7 +67,7 @@ const logout = () => {
                                     <template #trigger>
                                         <span class="inline-flex rounded-md">
                                             <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md transition ease-in-out duration-150">
-                                                {{ $page.props.auth.user.current_team.name }}
+                                                {{ teamSwitcherLabel }}
 
                                                 <svg class="ms-2 -me-0.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
@@ -78,7 +84,7 @@ const logout = () => {
                                             </div>
 
                                             <!-- Team Settings -->
-                                            <DropdownLink :href="route('teams.show', $page.props.auth.user.current_team)">
+                                            <DropdownLink v-if="hasCurrentTeam" :href="route('teams.show', currentTeam)">
                                                 {{ $t('Team Settings') }}
                                             </DropdownLink>
 
@@ -87,14 +93,14 @@ const logout = () => {
                                             </DropdownLink>
 
                                             <!-- Team Switcher -->
-                                            <template v-if="$page.props.auth.user.all_teams.length > 1">
+                                            <template v-if="teams.length > 1">
                                                 <div class="border-t border-base-content/20" />
 
                                                 <div class="block px-4 py-2 text-xs">
                                                     {{ $t('Switch Teams') }}
                                                 </div>
 
-                                                <template v-for="team in $page.props.auth.user.all_teams" :key="team.id">
+                                                <template v-for="team in teams" :key="team.id">
                                                     <form @submit.prevent="switchToTeam(team)">
                                                         <DropdownLink as="button">
                                                             <div class="flex items-center">
@@ -238,7 +244,7 @@ const logout = () => {
                                 </div>
 
                                 <!-- Team Settings -->
-                                <ResponsiveNavLink :href="route('teams.show', $page.props.auth.user.current_team)" :active="route().current('teams.show')">
+                                <ResponsiveNavLink v-if="hasCurrentTeam" :href="route('teams.show', currentTeam)" :active="route().current('teams.show')">
                                     {{ $t('Team Settings') }}
                                 </ResponsiveNavLink>
 
@@ -247,14 +253,14 @@ const logout = () => {
                                 </ResponsiveNavLink>
 
                                 <!-- Team Switcher -->
-                                <template v-if="$page.props.auth.user.all_teams.length > 1">
+                                <template v-if="teams.length > 1">
                                     <div class="border-t border-base-content/20" />
 
                                     <div class="block px-4 py-2 text-xs ">
                                         {{ $t('Switch Teams') }}
                                     </div>
 
-                                    <template v-for="team in $page.props.auth.user.all_teams" :key="team.id">
+                                    <template v-for="team in teams" :key="team.id">
                                         <form @submit.prevent="switchToTeam(team)">
                                             <ResponsiveNavLink as="button">
                                                 <div class="flex items-center">

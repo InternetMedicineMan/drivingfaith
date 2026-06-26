@@ -15,9 +15,9 @@ class Subscribed
      */
     public function handle(Request $request, Closure $next): mixed
     {
-        if (! $request->user()?->subscribed()) {
+        if (! $request->user()?->currentTeam?->subscribed()) {
             // Redirect user to billing page and ask them to subscribe...
-            return route('dashboard');
+            return redirect()->route('dashboard');
         }
 
         return $next($request);

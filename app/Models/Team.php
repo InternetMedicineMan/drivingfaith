@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Cashier\Billable;
 use Laravel\Jetstream\Events\TeamCreated;
 use Laravel\Jetstream\Events\TeamDeleted;
 use Laravel\Jetstream\Events\TeamUpdated;
@@ -10,7 +12,9 @@ use Laravel\Jetstream\Team as JetstreamTeam;
 
 class Team extends JetstreamTeam
 {
+    use Billable;
     use HasFactory;
+    use Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -42,6 +46,28 @@ class Team extends JetstreamTeam
     {
         return [
             'personal_team' => 'boolean',
+            'trial_ends_at' => 'datetime',
+        ];
+    }
+
+    public function stripeName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function stripeEmail(): ?string
+    {
+        return $this->owner?->email;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function stripeMetadata(): array
+    {
+        return [
+            'team_id' => (string) $this->id,
+            'owner_user_id' => (string) $this->user_id,
         ];
     }
 }

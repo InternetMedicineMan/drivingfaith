@@ -16,13 +16,18 @@ class StripeController extends Controller
     public function subscriptionCheckout(Request $request, $price)
     {
         $user = $request->user();
+        $team = $user->currentTeam;
 
-        if ($user->subscribedToPrice($price)) {
+        if (! $team) {
+            return redirect()->route('teams.create')->dangerBanner(__('Create or select a team before choosing a plan.'));
+        }
+
+        if ($team->subscribedToPrice($price)) {
             return redirect()->back()->dangerBanner(__('You are already subscribed to that plan'));
         }
 
-        if ($user->subscribed() && $user->subscription()?->valid()) {
-            $user->subscription()
+        if ($team->subscribed() && $team->subscription()?->valid()) {
+            $team->subscription()
                 ?->load('owner')
                 ->skipTrial()
                 ->swap($price);
@@ -31,7 +36,7 @@ class StripeController extends Controller
             return redirect()->back()->banner(__('You have successfully subscribed to :name plan', ['name' => $price]));
         }
 
-        $checkout = $user
+        $checkout = $team
             ->newSubscription('default', $price);
 
         // If user already used his trial with different plan, new trial will not be allowed for him
@@ -49,11 +54,16 @@ class StripeController extends Controller
 
     public function productCheckout(Request $request, $price): Checkout
     {
-        return $request->user()->checkout($price, [
+        $team = $request->user()->currentTeam;
+
+        abort_if(! $team, 403, __('Create or select a team before checking out.'));
+
+        return $team->checkout($price, [
             'success_url' => route('stripe.success').'?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => route('dashboard'),
             'metadata' => [
                 'price' => $price,
+                'team_id' => $team->id,
             ],
         ]);
     }
@@ -80,7 +90,11 @@ class StripeController extends Controller
 
     public function billing(Request $request): Response
     {
-        $url = $request->user()->billingPortalUrl(route('dashboard'));
+        $team = $request->user()->currentTeam;
+
+        abort_if(! $team, 403, __('Create or select a team before managing billing.'));
+
+        $url = $team->billingPortalUrl(route('dashboard'));
 
         return Inertia::location($url);
     }

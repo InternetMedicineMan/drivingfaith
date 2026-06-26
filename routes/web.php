@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\MagicLinkController;
 use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\ChangelogController;
+use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Invoices\DownloadInvoiceController;
 use App\Http\Controllers\OgImageController;
@@ -47,7 +48,7 @@ Route::prefix('auth')->group(function () {
     Route::get('/magic-link/{token}', [MagicLinkController::class, 'loginWithMagicLink'])->name('magic.link.login');
 });
 
-Route::post('coming-soon', [\App\Http\Controllers\ComingSoonController::class, 'index'])->name('coming-soon.store');
+Route::post('coming-soon', [ComingSoonController::class, 'index'])->name('coming-soon.store');
 
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{article:slug}', [BlogController::class, 'article'])->name('blog.article');
@@ -76,7 +77,14 @@ Route::middleware([
 ])->group(function () {
     // Here goes your auth user endpoints
     Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
+        $team = request()->user()->currentTeam;
+
+        return Inertia::render('Dashboard', [
+            'teamBilling' => [
+                'subscribed' => (bool) $team?->subscribed(),
+                'status' => $team?->subscription()?->stripe_status,
+            ],
+        ]);
     })->name('dashboard');
     Route::get('/invoices/{invoice}/download', DownloadInvoiceController::class)->name('invoices.download');
 
