@@ -41,9 +41,25 @@ it('creates the bible study mailing schema', function () {
             'html_path',
             'html_content',
         ]))->toBeTrue()
-        ->and(Schema::hasTable('pod_contacts'))->toBeTrue()
+        ->and(Schema::hasTable('ministry_contacts'))->toBeTrue()
+        ->and(Schema::hasColumns('ministry_contacts', [
+            'team_id',
+            'status',
+            'first_source_type',
+            'first_source_name',
+            'first_contacted_at',
+        ]))->toBeTrue()
+        ->and(Schema::hasTable('ministry_contact_events'))->toBeTrue()
+        ->and(Schema::hasColumns('ministry_contact_events', [
+            'team_id',
+            'contact_id',
+            'type',
+            'source',
+            'summary',
+        ]))->toBeTrue()
         ->and(Schema::hasTable('pod_campaign_enrollments'))->toBeTrue()
         ->and(Schema::hasColumns('pod_campaign_enrollments', [
+            'contact_id',
             'reply_required_by_mailing_id',
             'reply_required_at',
             'reply_received_at',
@@ -119,8 +135,12 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    $contactId = DB::table('pod_contacts')->insertGetId([
+    $contactId = DB::table('ministry_contacts')->insertGetId([
         'team_id' => $team->id,
+        'status' => 'active',
+        'first_source_type' => 'bible_study',
+        'first_source_name' => 'Romans Bible Study request',
+        'first_contacted_at' => now(),
         'first_name' => 'Ada',
         'last_name' => 'Lovelace',
         'address1' => '123 Example St',
@@ -134,7 +154,7 @@ it('stores campaign enrollment and delivery state', function () {
     $enrollmentId = DB::table('pod_campaign_enrollments')->insertGetId([
         'team_id' => $team->id,
         'campaign_id' => $campaignId,
-        'mailing_contact_id' => $contactId,
+        'contact_id' => $contactId,
         'status' => 'active',
         'next_mailing_id' => $mailingId,
         'next_send_on' => now()->toDateString(),
@@ -149,7 +169,7 @@ it('stores campaign enrollment and delivery state', function () {
         'team_id' => $team->id,
         'campaign_enrollment_id' => $enrollmentId,
         'campaign_mailing_id' => $mailingId,
-        'mailing_contact_id' => $contactId,
+        'contact_id' => $contactId,
         'sequence' => 1,
         'status' => 'planned',
         'scheduled_for' => now()->toDateString(),
@@ -166,7 +186,7 @@ it('stores campaign enrollment and delivery state', function () {
         'campaign_enrollment_id' => $enrollmentId,
         'enrollment_mailing_id' => $enrollmentMailingId,
         'campaign_mailing_id' => $mailingId,
-        'mailing_contact_id' => $contactId,
+        'contact_id' => $contactId,
         'status' => 'queued',
         'scheduled_for' => now()->toDateString(),
         'idempotency_key' => 'campaign-1:enrollment-1:mailing-1',
@@ -179,9 +199,20 @@ it('stores campaign enrollment and delivery state', function () {
         'campaign_enrollment_id' => $enrollmentId,
         'enrollment_mailing_id' => $enrollmentMailingId,
         'campaign_mailing_id' => $mailingId,
-        'mailing_contact_id' => $contactId,
+        'contact_id' => $contactId,
         'channel' => 'mail',
         'summary' => 'Returned lesson response card.',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('ministry_contact_events')->insert([
+        'team_id' => $team->id,
+        'contact_id' => $contactId,
+        'type' => 'bible_study_request',
+        'source' => 'bible_studies',
+        'source_label' => 'Romans Bible Study',
+        'summary' => 'Requested the Romans Bible Study.',
         'created_at' => now(),
         'updated_at' => now(),
     ]);
@@ -189,5 +220,6 @@ it('stores campaign enrollment and delivery state', function () {
     expect(DB::table('pod_campaign_enrollments')->where('status', 'active')->count())->toBe(1)
         ->and(DB::table('pod_enrollment_mailings')->whereNotNull('override_cover_letter_html')->count())->toBe(1)
         ->and(DB::table('pod_deliveries')->where('status', 'queued')->count())->toBe(1)
-        ->and(DB::table('pod_replies')->count())->toBe(1);
+        ->and(DB::table('pod_replies')->count())->toBe(1)
+        ->and(DB::table('ministry_contact_events')->where('contact_id', $contactId)->count())->toBe(1);
 });

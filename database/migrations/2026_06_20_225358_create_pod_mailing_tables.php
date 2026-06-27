@@ -89,10 +89,14 @@ return new class extends Migration
             $table->unique(['campaign_mailing_id', 'page_number'], 'pod_pages_mailing_page_unique');
         });
 
-        Schema::create('pod_contacts', function (Blueprint $table) {
+        Schema::create('ministry_contacts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('team_id')->nullable()->constrained()->nullOnDelete();
             $table->string('external_key')->nullable();
+            $table->string('status')->default('active');
+            $table->string('first_source_type')->nullable();
+            $table->string('first_source_name')->nullable();
+            $table->timestamp('first_contacted_at')->nullable();
             $table->string('first_name');
             $table->string('last_name');
             $table->string('organization')->nullable();
@@ -109,6 +113,8 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->unique(['team_id', 'external_key']);
+            $table->index(['team_id', 'status']);
+            $table->index(['team_id', 'first_source_type']);
             $table->index(['team_id', 'last_name', 'first_name']);
             $table->index(['zip', 'state']);
         });
@@ -117,7 +123,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('team_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('campaign_id')->constrained('pod_campaigns')->cascadeOnDelete();
-            $table->foreignId('mailing_contact_id')->constrained('pod_contacts')->cascadeOnDelete();
+            $table->foreignId('contact_id')->constrained('ministry_contacts')->cascadeOnDelete();
             $table->string('status')->default('active');
             $table->timestamp('enrolled_at')->useCurrent();
             $table->timestamp('completed_at')->nullable();
@@ -131,7 +137,7 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            $table->unique(['campaign_id', 'mailing_contact_id']);
+            $table->unique(['campaign_id', 'contact_id']);
             $table->index(['team_id', 'status']);
             $table->index(['status', 'next_send_on']);
         });
@@ -141,7 +147,7 @@ return new class extends Migration
             $table->foreignId('team_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('campaign_enrollment_id')->constrained('pod_campaign_enrollments')->cascadeOnDelete();
             $table->foreignId('campaign_mailing_id')->constrained('pod_campaign_mailings')->cascadeOnDelete();
-            $table->foreignId('mailing_contact_id')->constrained('pod_contacts')->cascadeOnDelete();
+            $table->foreignId('contact_id')->constrained('ministry_contacts')->cascadeOnDelete();
             $table->unsignedSmallInteger('sequence');
             $table->string('status')->default('planned');
             $table->date('scheduled_for')->nullable();
@@ -167,7 +173,7 @@ return new class extends Migration
             $table->foreignId('campaign_enrollment_id')->constrained('pod_campaign_enrollments')->cascadeOnDelete();
             $table->foreignId('enrollment_mailing_id')->nullable()->constrained('pod_enrollment_mailings')->nullOnDelete();
             $table->foreignId('campaign_mailing_id')->constrained('pod_campaign_mailings')->cascadeOnDelete();
-            $table->foreignId('mailing_contact_id')->constrained('pod_contacts')->cascadeOnDelete();
+            $table->foreignId('contact_id')->constrained('ministry_contacts')->cascadeOnDelete();
             $table->string('status')->default('queued');
             $table->date('scheduled_for')->nullable();
             $table->timestamp('sent_at')->nullable();
@@ -193,7 +199,7 @@ return new class extends Migration
             $table->foreignId('campaign_enrollment_id')->constrained('pod_campaign_enrollments')->cascadeOnDelete();
             $table->foreignId('enrollment_mailing_id')->nullable()->constrained('pod_enrollment_mailings')->nullOnDelete();
             $table->foreignId('campaign_mailing_id')->nullable()->constrained('pod_campaign_mailings')->nullOnDelete();
-            $table->foreignId('mailing_contact_id')->constrained('pod_contacts')->cascadeOnDelete();
+            $table->foreignId('contact_id')->constrained('ministry_contacts')->cascadeOnDelete();
             $table->timestamp('received_at')->useCurrent();
             $table->string('channel')->default('mail');
             $table->text('summary')->nullable();
@@ -215,7 +221,7 @@ return new class extends Migration
         Schema::dropIfExists('pod_deliveries');
         Schema::dropIfExists('pod_enrollment_mailings');
         Schema::dropIfExists('pod_campaign_enrollments');
-        Schema::dropIfExists('pod_contacts');
+        Schema::dropIfExists('ministry_contacts');
         Schema::dropIfExists('pod_campaign_mailing_pages');
         Schema::dropIfExists('pod_campaign_mailings');
         Schema::dropIfExists('pod_content_templates');

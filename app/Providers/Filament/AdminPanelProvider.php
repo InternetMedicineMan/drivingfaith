@@ -57,6 +57,12 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->navigationGroups([
                 NavigationGroup::make()
+                    ->label('People & Outreach')
+                    ->icon('heroicon-o-identification'),
+                NavigationGroup::make()
+                    ->label('Ministry Modules')
+                    ->icon('heroicon-o-squares-plus'),
+                NavigationGroup::make()
                     ->label('Payments')
                     ->icon('heroicon-o-banknotes'),
                 NavigationGroup::make()
@@ -65,7 +71,6 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()
                     ->label('Users')
                     ->icon('heroicon-o-users'),
-
             ])
             ->sidebarCollapsibleOnDesktop();
     }

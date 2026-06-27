@@ -49,8 +49,8 @@ def fetch_due_mailings(conn, limit, campaign_id=None):
         FROM pod_enrollment_mailings planned
         INNER JOIN pod_campaign_enrollments enrollments
             ON enrollments.id = planned.campaign_enrollment_id
-        INNER JOIN pod_contacts contacts
-            ON contacts.id = planned.mailing_contact_id
+        INNER JOIN ministry_contacts contacts
+            ON contacts.id = planned.contact_id
         INNER JOIN pod_campaigns campaigns
             ON campaigns.id = enrollments.campaign_id
         INNER JOIN pod_campaign_mailings mailings
@@ -153,7 +153,7 @@ def fetch_enrollment_for_reply(conn, enrollment_id):
         SELECT
             enrollments.id AS enrollment_id,
             enrollments.team_id,
-            enrollments.mailing_contact_id,
+            enrollments.contact_id,
             enrollments.next_mailing_id,
             enrollments.reply_required_by_mailing_id,
             next_planned.id AS next_enrollment_mailing_id,
@@ -194,7 +194,7 @@ def plan_enrollment(conn, enrollment_id):
                 team_id,
                 campaign_enrollment_id,
                 campaign_mailing_id,
-                mailing_contact_id,
+                contact_id,
                 sequence,
                 status,
                 scheduled_for,
@@ -208,7 +208,7 @@ def plan_enrollment(conn, enrollment_id):
                 enrollment["team_id"],
                 enrollment["id"],
                 mailing["id"],
-                enrollment["mailing_contact_id"],
+                enrollment["contact_id"],
                 mailing["sequence"],
                 scheduled_for,
                 mailing["cover_letter_template_id"],
@@ -296,7 +296,7 @@ def ensure_delivery(conn, row):
             campaign_enrollment_id,
             enrollment_mailing_id,
             campaign_mailing_id,
-            mailing_contact_id,
+            contact_id,
             status,
             scheduled_for,
             provider,
@@ -329,6 +329,47 @@ def ensure_delivery(conn, row):
     return cursor.fetchone()
 
 
+def record_contact_event(
+    conn,
+    team_id,
+    contact_id,
+    event_type,
+    source=None,
+    source_label=None,
+    summary=None,
+    eventable_type=None,
+    eventable_id=None,
+):
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO ministry_contact_events (
+            team_id,
+            contact_id,
+            eventable_type,
+            eventable_id,
+            type,
+            source,
+            source_label,
+            summary,
+            occurred_at,
+            created_at,
+            updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(), NOW())
+        """,
+        (
+            team_id,
+            contact_id,
+            eventable_type,
+            eventable_id,
+            event_type,
+            source,
+            source_label,
+            summary,
+        ),
+    )
+
+
 def mark_delivery_sent(conn, row, delivery_id, provider_id):
     cursor = conn.cursor()
     cursor.execute(
@@ -354,6 +395,17 @@ def mark_delivery_sent(conn, row, delivery_id, provider_id):
         WHERE id = %s
         """,
         (row["enrollment_mailing_id"],),
+    )
+    record_contact_event(
+        conn,
+        row["team_id"],
+        row["contact_id"],
+        "pod_delivery",
+        source="pod",
+        source_label=row["mailing_name"],
+        summary=f"Sent {row['campaign_name']} - {row['mailing_name']}.",
+        eventable_type="App\\Models\\PodDelivery",
+        eventable_id=delivery_id,
     )
     conn.commit()
 
@@ -470,7 +522,7 @@ def record_reply(conn, enrollment_id, channel, summary, resume_on=None):
             campaign_enrollment_id,
             enrollment_mailing_id,
             campaign_mailing_id,
-            mailing_contact_id,
+            contact_id,
             channel,
             summary,
             created_at,
@@ -482,10 +534,23 @@ def record_reply(conn, enrollment_id, channel, summary, resume_on=None):
             enrollment["enrollment_id"],
             enrollment["reply_required_by_enrollment_mailing_id"],
             enrollment["reply_required_by_mailing_id"],
-            enrollment["mailing_contact_id"],
+            enrollment["contact_id"],
             channel,
             summary,
         ),
+    )
+    reply_id = cursor.lastrowid
+
+    record_contact_event(
+        conn,
+        enrollment["team_id"],
+        enrollment["contact_id"],
+        "reply_received",
+        source="pod",
+        source_label=channel,
+        summary=summary or "Reply received for POD campaign.",
+        eventable_type="App\\Models\\PodReply",
+        eventable_id=reply_id,
     )
 
     if enrollment["next_mailing_id"] is None:
@@ -494,6 +559,8 @@ def record_reply(conn, enrollment_id, channel, summary, resume_on=None):
             UPDATE pod_campaign_enrollments
             SET status = 'completed',
                 completed_at = NOW(),
+                reply_required_by_mailing_id = NULL,
+                reply_required_at = NULL,
                 reply_received_at = NOW(),
                 updated_at = NOW()
             WHERE id = %s
@@ -506,6 +573,8 @@ def record_reply(conn, enrollment_id, channel, summary, resume_on=None):
             UPDATE pod_campaign_enrollments
             SET status = 'active',
                 next_send_on = %s,
+                reply_required_by_mailing_id = NULL,
+                reply_required_at = NULL,
                 reply_received_at = NOW(),
                 updated_at = NOW()
             WHERE id = %s

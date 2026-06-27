@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
 use Laravel\Jetstream\Events\TeamCreated;
@@ -22,6 +23,7 @@ class Team extends JetstreamTeam
      * @var array<int, string>
      */
     protected $fillable = [
+        'user_id',
         'name',
         'personal_team',
     ];
@@ -69,5 +71,30 @@ class Team extends JetstreamTeam
             'team_id' => (string) $this->id,
             'owner_user_id' => (string) $this->user_id,
         ];
+    }
+
+    public function podCampaigns(): HasMany
+    {
+        return $this->hasMany(PodCampaign::class);
+    }
+
+    public function podContentTemplates(): HasMany
+    {
+        return $this->hasMany(PodContentTemplate::class);
+    }
+
+    public function ministryContacts(): HasMany
+    {
+        return $this->hasMany(MinistryContact::class);
+    }
+
+    public function ministryContactEvents(): HasMany
+    {
+        return $this->hasMany(MinistryContactEvent::class);
+    }
+
+    public function podCampaignEnrollments(): HasMany
+    {
+        return $this->hasMany(PodCampaignEnrollment::class);
     }
 }

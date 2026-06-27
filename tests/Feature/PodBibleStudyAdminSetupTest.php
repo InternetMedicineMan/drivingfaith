@@ -1,0 +1,153 @@
+<?php
+
+use App\Filament\Resources\MinistryContacts\MinistryContactResource;
+use App\Filament\Resources\PodCampaignEnrollments\PodCampaignEnrollmentResource;
+use App\Filament\Resources\PodCampaignMailings\PodCampaignMailingResource;
+use App\Filament\Resources\PodCampaigns\PodCampaignResource;
+use App\Filament\Resources\PodContentTemplates\PodContentTemplateResource;
+use App\Filament\Resources\Teams\TeamResource;
+use App\Models\MinistryContact;
+use App\Models\MinistryContactEvent;
+use App\Models\PodCampaign;
+use App\Models\PodCampaignEnrollment;
+use App\Models\PodCampaignMailing;
+use App\Models\PodCampaignMailingPage;
+use App\Models\PodContentTemplate;
+use App\Models\Team;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
+
+uses(RefreshDatabase::class);
+
+it('models a team scoped bible study pod campaign setup', function () {
+    $team = Team::factory()->create([
+        'name' => 'Grace Chapel',
+    ]);
+
+    $campaign = PodCampaign::query()->create([
+        'team_id' => $team->id,
+        'name' => 'Romans Bible Study',
+        'slug' => 'romans-bible-study',
+        'source_key' => 'romans-2026',
+        'status' => 'active',
+    ]);
+
+    $coverLetter = PodContentTemplate::query()->create([
+        'team_id' => $team->id,
+        'type' => 'cover_letter',
+        'name' => 'Default Welcome Letter',
+        'slug' => 'default-welcome-letter',
+        'status' => 'active',
+        'html_content' => '<html><body>Hello {{ first_name }}</body></html>',
+    ]);
+
+    $bibleStudy = PodContentTemplate::query()->create([
+        'team_id' => $team->id,
+        'type' => 'bible_study',
+        'name' => 'Romans Lesson 1',
+        'slug' => 'romans-lesson-1',
+        'status' => 'active',
+        'html_content' => '<html><body>Romans lesson content</body></html>',
+    ]);
+
+    $mailing = PodCampaignMailing::query()->create([
+        'campaign_id' => $campaign->id,
+        'name' => 'Lesson 1',
+        'sequence' => 1,
+        'pause_until_reply' => true,
+        'cover_letter_template_id' => $coverLetter->id,
+        'bible_study_template_id' => $bibleStudy->id,
+        'status' => 'active',
+    ]);
+
+    PodCampaignMailingPage::query()->create([
+        'campaign_mailing_id' => $mailing->id,
+        'page_number' => 1,
+        'name' => 'Lesson Content',
+        'html_content' => '<html><body>Lesson page</body></html>',
+    ]);
+
+    $contact = MinistryContact::query()->create([
+        'team_id' => $team->id,
+        'status' => 'active',
+        'first_source_type' => 'bible_study',
+        'first_source_name' => 'Romans Bible Study request',
+        'first_contacted_at' => now(),
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'address1' => '123 Example St',
+        'city' => 'Nashville',
+        'state' => 'TN',
+        'zip' => '37201',
+    ]);
+
+    MinistryContactEvent::query()->create([
+        'contact_id' => $contact->id,
+        'type' => 'bible_study_request',
+        'source' => 'bible_studies',
+        'source_label' => 'Romans Bible Study',
+        'summary' => 'Requested the Romans Bible Study.',
+    ]);
+
+    $enrollment = PodCampaignEnrollment::query()->create([
+        'team_id' => $team->id,
+        'campaign_id' => $campaign->id,
+        'contact_id' => $contact->id,
+        'status' => 'active',
+        'next_mailing_id' => $mailing->id,
+        'next_send_on' => now()->toDateString(),
+        'current_sequence' => 1,
+    ]);
+
+    expect($team->podCampaigns)->toHaveCount(1)
+        ->and($team->podContentTemplates)->toHaveCount(2)
+        ->and($team->ministryContacts)->toHaveCount(1)
+        ->and($contact->events)->toHaveCount(1)
+        ->and($contact->events->first()->team_id)->toBe($team->id)
+        ->and($campaign->mailings)->toHaveCount(1)
+        ->and($mailing->pages)->toHaveCount(1)
+        ->and($mailing->coverLetterTemplate->is($coverLetter))->toBeTrue()
+        ->and($mailing->bibleStudyTemplate->is($bibleStudy))->toBeTrue()
+        ->and($enrollment->contact->full_name)->toBe('Ada Lovelace')
+        ->and($enrollment->nextMailing->is($mailing))->toBeTrue();
+});
+
+it('places pod bible study admin resources under ministry module navigation', function () {
+    expect(TeamResource::getNavigationGroup())->toBe('Ministry Modules')
+        ->and(TeamResource::getNavigationLabel())->toBe('Ministry Groups')
+        ->and(PodCampaignResource::getNavigationGroup())->toBe('Ministry Modules')
+        ->and(PodCampaignResource::getNavigationLabel())->toBe('Bible Study Campaigns')
+        ->and(PodContentTemplateResource::getNavigationParentItem())->toBe('Bible Study Campaigns')
+        ->and(PodCampaignMailingResource::getNavigationParentItem())->toBe('Bible Study Campaigns')
+        ->and(MinistryContactResource::getNavigationGroup())->toBe('People & Outreach')
+        ->and(PodCampaignEnrollmentResource::getNavigationParentItem())->toBe('Bible Study Campaigns');
+});
+
+it('renders the ministry pod admin pages for admins', function (string $path) {
+    $admin = User::factory()->create();
+
+    Role::query()->create([
+        'name' => 'admin',
+        'guard_name' => 'web',
+    ]);
+
+    $admin->assignRole('admin');
+
+    $this->actingAs($admin)
+        ->get($path)
+        ->assertOk();
+})->with([
+    '/admin/teams',
+    '/admin/teams/create',
+    '/admin/pod-campaigns',
+    '/admin/pod-campaigns/create',
+    '/admin/pod-content-templates',
+    '/admin/pod-content-templates/create',
+    '/admin/pod-campaign-mailings',
+    '/admin/pod-campaign-mailings/create',
+    '/admin/ministry-contacts',
+    '/admin/ministry-contacts/create',
+    '/admin/pod-campaign-enrollments',
+    '/admin/pod-campaign-enrollments/create',
+]);

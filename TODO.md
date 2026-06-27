@@ -2,39 +2,49 @@
 
 ## Current Priorities
 
-1. Move billing from users to teams.
-   - Teams are the paid workspace.
-   - Users can belong to multiple teams and switch between them.
-   - Avoid destructive migrations; preserve existing users and user billing data during transition.
-
-2. Add team dashboard metrics.
+1. Add team dashboard metrics.
    - Team members / ministry directory count.
    - Active Bible Study contacts.
    - Billing or subscription status.
    - Credits remaining once the credit ledger exists.
    - Scheduled mailings and replies needing attention.
 
-3. Build the ministry member directory.
+2. Build the ministry member directory.
    - Directory people are not always platform users.
    - Access should attach to a directory person when needed.
    - Role/access language should fit ministry: pastor, board, volunteer, member, viewer.
    - Support multiple titles per person for small ministries where people wear several hats.
+   - Model members as an add-on profile for ministry contacts, likely `ministry_members.contact_id`, so outreach history and membership records stay connected without mixing every contact into the member list.
+   - Make it easy to convert a ministry contact into a member while preserving the contact timeline.
 
-4. Move authentication toward passwordless access.
+3. Move authentication toward passwordless access.
    - OAuth providers: Google, X, GitHub.
    - Email one-time login link or code.
    - Later: SMS one-time code.
    - Hide/remove password-first registration, login, reset, and profile flows when ready.
 
-5. Add team credits.
+4. Add team credits.
    - Use a ledger, not only a mutable balance.
    - Credits belong to teams.
    - Spending should be traceable to deliveries or other usage.
+   - Monthly account billing should stay separate from one-time credit purchases.
+   - Support one-time credit packs first, then optional auto-refill when the balance drops below a configured threshold.
+   - Decrement credits for POD mailings and other per-event costs, with ledger entries tied back to the delivery or usage record.
+   - Keep internal/self mailings possible without billing the current ministry account while the system is still private.
 
-6. Add custom domain mapping.
+5. Add custom domain mapping.
    - Start with team-owned verified domains.
    - Resolve a team from the host when appropriate.
    - Consider full tenancy only if domain mapping is not enough.
+
+## Ready For Full-Suite Verification
+
+- Move billing from users to teams.
+  - Stripe billing now uses teams as the paid workspace.
+  - Users can belong to multiple teams and billing follows the selected ministry team.
+  - Legacy user billing data is preserved during the transition.
+  - LemonSqueezy and Paddle are disabled for now instead of migrated.
+  - Remaining checks before final closeout: run the full test suite and decide whether to hide legacy user billing fields more aggressively in admin.
 
 ## Data Safety Notes
 
