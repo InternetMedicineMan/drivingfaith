@@ -78,11 +78,13 @@ Route::middleware([
     // Here goes your auth user endpoints
     Route::get('/dashboard', function () {
         $team = request()->user()->currentTeam;
+        $hasBillableTeam = (bool) $team && ! $team->personal_team;
 
         return Inertia::render('Dashboard', [
+            'hasBillableTeam' => $hasBillableTeam,
             'teamBilling' => [
-                'subscribed' => (bool) $team?->subscribed(),
-                'status' => $team?->subscription()?->stripe_status,
+                'subscribed' => $hasBillableTeam && $team->subscribed(),
+                'status' => $hasBillableTeam ? $team->subscription()?->stripe_status : null,
             ],
         ]);
     })->name('dashboard');

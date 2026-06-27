@@ -13,6 +13,10 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Plans from '@/Components/Plans.vue';
 
 const props = defineProps({
+    hasBillableTeam: {
+        type: Boolean,
+        default: false,
+    },
     teamBilling: {
         type: Object,
         default: () => ({
@@ -31,6 +35,14 @@ const ministryTeams = computed(() => teams.value.filter((team) => ! team.persona
 const hasMinistryTeam = computed(() => ministryTeams.value.length > 0);
 const teamLabel = computed(() => currentTeam.value?.name ?? 'No ministry team selected');
 const isSubscribed = computed(() => Boolean(props.teamBilling.subscribed));
+const canChoosePlan = computed(() => props.hasBillableTeam && ! isSubscribed.value);
+const billingStatusLabel = computed(() => {
+    if (! props.hasBillableTeam) {
+        return 'Choose a team';
+    }
+
+    return isSubscribed.value ? 'Active' : 'Needs setup';
+});
 </script>
 
 <template>
@@ -117,7 +129,7 @@ const isSubscribed = computed(() => Boolean(props.teamBilling.subscribed));
                                 </div>
                                 <p class="mt-4 text-sm text-base-content/60">{{ $t('Billing status') }}</p>
                                 <p class="mt-1 text-xl font-bold text-base-content">
-                                    {{ isSubscribed ? $t('Active') : $t('Needs setup') }}
+                                    {{ $t(billingStatusLabel) }}
                                 </p>
                             </div>
                         </div>
@@ -161,7 +173,7 @@ const isSubscribed = computed(() => Boolean(props.teamBilling.subscribed));
                     </section>
 
                     <aside class="space-y-6">
-                        <div class="rounded-lg border border-base-300 bg-base-100 p-6 shadow-sm">
+                        <div v-if="props.hasBillableTeam" class="rounded-lg border border-base-300 bg-base-100 p-6 shadow-sm">
                             <div class="flex items-center gap-3">
                                 <CheckCircleIcon class="h-6 w-6 text-success" />
                                 <h3 class="font-bold text-base-content">{{ $t('Subscription setup') }}</h3>
@@ -173,7 +185,7 @@ const isSubscribed = computed(() => Boolean(props.teamBilling.subscribed));
                                 <CreditCardIcon class="h-5 w-5" />
                                 {{ $t('Manage Billing') }}
                             </Link>
-                            <a v-else href="#team-plans" class="btn btn-primary btn-sm mt-5 w-full">
+                            <a v-else-if="canChoosePlan" href="#team-plans" class="btn btn-primary btn-sm mt-5 w-full">
                                 <CreditCardIcon class="h-5 w-5" />
                                 {{ $t('Choose Plan') }}
                             </a>
@@ -192,8 +204,8 @@ const isSubscribed = computed(() => Boolean(props.teamBilling.subscribed));
                     </aside>
                 </div>
 
-                <div v-if="! isSubscribed" id="team-plans" class="mt-12">
-                        <div class="mb-8">
+                <div v-if="canChoosePlan" id="team-plans" class="mt-12">
+                    <div class="mb-8">
                         <h2 class="text-2xl font-bold text-base-content">{{ $t('Pick a plan for this workspace') }}</h2>
                         <p class="mt-2 text-base-content/70">
                             {{ $t('Choose the plan that fits the church or group you are setting up now.') }}

@@ -37,6 +37,7 @@ it('shows the team workspace dashboard for authenticated users', function () {
             ->component('Dashboard')
             ->where('auth.user.current_team.name', 'Grace Church')
             ->where('auth.user.all_teams.0.name', 'Grace Church')
+            ->where('hasBillableTeam', true)
             ->where('teamBilling.subscribed', true)
             ->where('teamBilling.status', 'active')
         );
@@ -52,6 +53,23 @@ it('renders the dashboard for users without a current team', function () {
         ->assertInertia(fn ($page) => $page
             ->component('Dashboard')
             ->where('auth.user.current_team', null)
+            ->where('hasBillableTeam', false)
+            ->where('teamBilling.subscribed', false)
+            ->where('teamBilling.status', null)
+        );
+});
+
+it('does not show team billing prompts for a personal team dashboard', function () {
+    $user = User::factory()->withPersonalTeam()->create();
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    $response
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page
+            ->component('Dashboard')
+            ->where('auth.user.current_team.personal_team', true)
+            ->where('hasBillableTeam', false)
             ->where('teamBilling.subscribed', false)
             ->where('teamBilling.status', null)
         );
