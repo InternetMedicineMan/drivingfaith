@@ -20,7 +20,7 @@ class RecentActivity extends TableWidget
             ->heading('Recent User Registrations')
             ->query(
                 User::query()
-                    ->with('subscriptions')
+                    ->with('currentTeam.subscriptions')
                     ->latest()
                     ->limit(10)
             )
@@ -49,7 +49,13 @@ class RecentActivity extends TableWidget
                 BadgeColumn::make('subscription_status')
                     ->label('Subscription')
                     ->getStateUsing(function ($record) {
-                        return $record->subscribed() ? 'Active' : 'None';
+                        $team = $record->currentTeam;
+
+                        if (! $team || $team->personal_team) {
+                            return 'None';
+                        }
+
+                        return $team->subscribed() ? 'Active' : 'None';
                     })
                     ->colors([
                         'success' => 'Active',

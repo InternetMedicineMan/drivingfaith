@@ -13,13 +13,17 @@ class Invoice extends Model
     use HasFactory;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_SENT = 'sent';
+
     public const STATUS_PAID = 'paid';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
         'number',
         'user_id',
+        'team_id',
         'customer_name',
         'customer_email',
         'status',
@@ -74,6 +78,11 @@ class Invoice extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class);
     }
 
     public function items(): HasMany

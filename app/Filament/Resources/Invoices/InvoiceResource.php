@@ -8,6 +8,7 @@ use App\Filament\Resources\Invoices\Pages\ListInvoices;
 use App\Filament\Resources\Invoices\Pages\ViewInvoice;
 use App\Models\Invoice;
 use App\Models\Price;
+use App\Models\Team;
 use App\Models\User;
 use App\Notifications\InvoiceCreatedNotification;
 use Filament\Actions\Action;
@@ -44,8 +45,30 @@ class InvoiceResource extends Resource
             ->components([
                 Section::make('Customer')
                     ->schema([
+                        Select::make('team_id')
+                            ->label('Billed Team')
+                            ->relationship('team', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->default(fn () => request('team_id'))
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                $team = Team::query()
+                                    ->with('owner')
+                                    ->find($state);
+
+                                if (! $team) {
+                                    return;
+                                }
+
+                                $set('user_id', $team->user_id);
+                                $set('customer_name', $team->name);
+                                $set('customer_email', $team->owner?->email);
+                            })
+                            ->columnSpan(1),
+
                         Select::make('user_id')
-                            ->label('Customer')
+                            ->label('Account Contact')
                             ->relationship('user', 'name')
                             ->searchable()
                             ->preload()
@@ -204,6 +227,10 @@ class InvoiceResource extends Resource
                 TextColumn::make('customer_name')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('team.name')
+                    ->label('Team')
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('customer_email')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -294,7 +321,10 @@ class InvoiceResource extends Resource
 
     public static function stripeSubscriptionCreateUrl(Model $record): string
     {
-        $record->loadMissing('user');
+        $record->loadMissing(['owner.owner']);
+
+        $team = $record->owner;
+        $legacyUser = $team ? null : User::query()->find($record->user_id);
 
         $price = Price::query()
             ->with('product')
@@ -302,9 +332,10 @@ class InvoiceResource extends Resource
             ->first();
 
         return self::prefilledCreateUrl([
-            'user_id' => $record->user_id,
-            'customer_name' => $record->user?->name,
-            'customer_email' => $record->user?->email,
+            'team_id' => $team?->id,
+            'user_id' => $team?->user_id ?? $legacyUser?->id,
+            'customer_name' => $team?->name ?? $legacyUser?->name,
+            'customer_email' => $team?->owner?->email ?? $legacyUser?->email,
             'currency' => $price?->currency ?? config('services.cashier.currency', 'usd'),
             'item_description' => $price?->product?->name ?? $record->stripe_price ?? $record->stripe_id,
             'quantity' => $record->quantity ?? 1,

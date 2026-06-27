@@ -179,7 +179,7 @@ const billingStatusLabel = computed(() => {
                                 <h3 class="font-bold text-base-content">{{ $t('Subscription setup') }}</h3>
                             </div>
                             <p class="mt-3 text-sm text-base-content/70">
-                                {{ $t('Start with the workspace you want to fund. Team-owned billing can be connected to this flow as the subscription model moves from accounts to teams.') }}
+                                {{ $t('Billing belongs to the selected ministry workspace, so each church or group can manage its own plan and payment method.') }}
                             </p>
                             <Link v-if="isSubscribed" :href="route('stripe.billing')" class="btn btn-outline btn-sm mt-5 w-full">
                                 <CreditCardIcon class="h-5 w-5" />

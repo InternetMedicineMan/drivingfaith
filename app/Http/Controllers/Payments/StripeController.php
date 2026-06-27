@@ -18,7 +18,7 @@ class StripeController extends Controller
         $user = $request->user();
         $team = $user->currentTeam;
 
-        if (! $team) {
+        if (! $team || $team->personal_team) {
             return redirect()->route('teams.create')->dangerBanner(__('Create or select a team before choosing a plan.'));
         }
 
@@ -56,7 +56,7 @@ class StripeController extends Controller
     {
         $team = $request->user()->currentTeam;
 
-        abort_if(! $team, 403, __('Create or select a team before checking out.'));
+        abort_if(! $team || $team->personal_team, 403, __('Create or select a team before checking out.'));
 
         return $team->checkout($price, [
             'success_url' => route('stripe.success').'?session_id={CHECKOUT_SESSION_ID}',
@@ -92,7 +92,7 @@ class StripeController extends Controller
     {
         $team = $request->user()->currentTeam;
 
-        abort_if(! $team, 403, __('Create or select a team before managing billing.'));
+        abort_if(! $team || $team->personal_team, 403, __('Create or select a team before managing billing.'));
 
         $url = $team->billingPortalUrl(route('dashboard'));
 

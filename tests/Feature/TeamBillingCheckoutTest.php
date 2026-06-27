@@ -14,3 +14,13 @@ it('requires a current team before starting stripe subscription checkout', funct
 
     $response->assertRedirect(route('teams.create'));
 });
+
+it('requires a non personal team before starting stripe subscription checkout', function () {
+    $user = User::factory()->withPersonalTeam()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->get(route('stripe.subscription.checkout', ['price' => 'price_ministry']));
+
+    $response->assertRedirect(route('teams.create'));
+});

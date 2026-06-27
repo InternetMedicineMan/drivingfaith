@@ -7,6 +7,7 @@ use App\Filament\Resources\StripeSubscriptions\Pages\CreateStripeSubscription;
 use App\Filament\Resources\StripeSubscriptions\Pages\EditStripeSubscription;
 use App\Filament\Resources\StripeSubscriptions\Pages\ListStripeSubscriptions;
 use App\Filament\Resources\StripeSubscriptions\Pages\ViewStripeSubscription;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -40,12 +41,22 @@ class StripeSubscriptionResource extends Resource
                     ->description('Manage customer subscription details')
                     ->schema([
                         Select::make('user_id')
-                            ->label('Customer')
-                            ->relationship('user', 'name')
+                            ->label('Legacy Account Contact')
+                            ->options(fn () => User::query()
+                                ->orderBy('name')
+                                ->pluck('name', 'id'))
+                            ->searchable()
+                            ->preload()
+                            ->helperText('Historical user link retained for subscriptions created before team billing.')
+                            ->columnSpan(1),
+
+                        Select::make('team_id')
+                            ->label('Billed Team')
+                            ->relationship('owner', 'name')
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->helperText('The customer for this subscription')
+                            ->helperText('The team that owns this Stripe subscription.')
                             ->columnSpan(1),
 
                         TextInput::make('stripe_price')
@@ -133,11 +144,14 @@ class StripeSubscriptionResource extends Resource
                 TextColumn::make('stripe_id')
                     ->label('Stripe ID')
                     ->searchable(),
-                TextColumn::make('user.name')
-                    ->label('User')
+                TextColumn::make('user_id')
+                    ->label('Legacy User ID')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('owner.name')
+                    ->label('Team')
                     ->searchable(),
-                TextColumn::make('user.email')
-                    ->label('Email')
+                TextColumn::make('owner.owner.email')
+                    ->label('Owner Email')
                     ->searchable(),
                 TextColumn::make('stripe_status')
                     ->label('Status')
