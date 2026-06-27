@@ -3,6 +3,7 @@
 use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Models\Price;
 use App\Models\Product;
+use App\Models\StripeOrder;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -95,4 +96,63 @@ it('preserves legacy user invoice prefill when no billed team is attached', func
             'provider_id' => 'sub_legacy_user',
         ])
         ->not->toHaveKey('team_id');
+});
+
+it('prefills stripe order invoices from the billed team', function () {
+    $owner = User::factory()->create([
+        'email' => 'orders@example.com',
+    ]);
+
+    $team = Team::factory()->create([
+        'name' => 'Mercy Fellowship',
+        'user_id' => $owner->id,
+        'personal_team' => false,
+    ]);
+
+    $product = Product::query()->create([
+        'stripe_id' => 'prod_letters',
+        'name' => 'Letter Credits',
+        'active' => true,
+        'type' => 'service',
+    ]);
+
+    Price::query()->create([
+        'stripe_id' => 'price_letters',
+        'product_id' => $product->stripe_id,
+        'active' => true,
+        'currency' => 'usd',
+        'type' => 'one_time',
+        'billing_scheme' => 'per_unit',
+        'unit_amount' => 4500,
+    ]);
+
+    $order = StripeOrder::query()->create([
+        'stripe_id' => 'cs_letters',
+        'user_id' => $owner->id,
+        'team_id' => $team->id,
+        'price_id' => 'price_letters',
+        'amount' => 4500,
+        'currency' => 'usd',
+        'status' => 'complete',
+        'payment_status' => 'paid',
+    ]);
+
+    $url = InvoiceResource::stripeOrderCreateUrl($order);
+
+    parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $query);
+
+    expect($query)
+        ->toMatchArray([
+            'team_id' => (string) $team->id,
+            'user_id' => (string) $owner->id,
+            'customer_name' => 'Mercy Fellowship',
+            'customer_email' => 'orders@example.com',
+            'currency' => 'usd',
+            'item_description' => 'Letter Credits',
+            'quantity' => '1',
+            'unit_price' => '4500',
+            'provider' => 'stripe',
+            'provider_type' => 'order',
+            'provider_id' => 'cs_letters',
+        ]);
 });

@@ -28,6 +28,13 @@ class LemonSqueezySubscriptionResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Payments';
 
+    protected static bool $shouldRegisterNavigation = false;
+
+    public static function canAccess(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema

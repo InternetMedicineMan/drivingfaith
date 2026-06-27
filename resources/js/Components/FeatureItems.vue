@@ -254,7 +254,7 @@ import ListItem from "@/Components/Data/ListItem.vue";
                     <ul class="space-y-2">
                         <ListItem :title="$t('Vue and Livewire Components')"/>
                         <ListItem :title="$t('Open AI Service')"/>
-                        <ListItem :title="$t('LemonSqueezy Service')"/>
+                        <ListItem :title="$t('Stripe Billing')"/>
                         <ListItem :title="$t('Coming Soon Page')"/>
                         <ListItem :title="$t('Terms and Privacy Page')"/>
                         <ListItem :title="$t('Detailed Documentation')"/>

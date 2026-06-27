@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Models\Price;
 use App\Models\Product;
 use App\Models\StripeOrder;
+use App\Models\Team;
 use App\Models\User;
 use App\Notifications\SubscriptionCreatedNotification;
 use Illuminate\Support\Facades\Log;
@@ -29,7 +30,8 @@ class StripeEventListener
             $stripeId = $event->payload['data']['object']['customer'];
             // $product = $event->payload['data']['object']['plan']['product'];
 
-            $user = User::where('stripe_id', $stripeId)->firstOrFail();
+            $team = Team::query()->where('stripe_id', $stripeId)->first();
+            $user = $team?->owner ?? User::query()->where('stripe_id', $stripeId)->firstOrFail();
             $user->notify(new SubscriptionCreatedNotification);
 
             // Write your logic here
@@ -38,7 +40,12 @@ class StripeEventListener
         if ($event->payload['type'] === 'checkout.session.completed') {
             $checkoutSession = $event->payload['data']['object'];
             $stripeId = $checkoutSession['customer'];
-            $user = User::where('stripe_id', $stripeId)->firstOrFail();
+            $metadata = $checkoutSession['metadata'] ?? [];
+            $team = isset($metadata['team_id'])
+                ? Team::query()->find($metadata['team_id'])
+                : null;
+            $team ??= Team::query()->where('stripe_id', $stripeId)->first();
+            $user = $team?->owner ?? User::query()->where('stripe_id', $stripeId)->firstOrFail();
             $user->notify(new SubscriptionCreatedNotification);
 
             // Check if the mode is 'payment'
@@ -54,12 +61,13 @@ class StripeEventListener
                     StripeOrder::create([
                         'stripe_id' => $checkoutSession['id'],
                         'user_id' => $user->id,
+                        'team_id' => $team?->id,
                         'price_id' => $price->stripe_id,
                         'amount' => $checkoutSession['amount_total'],
                         'currency' => $checkoutSession['currency'],
                         'status' => $checkoutSession['status'],
                         'payment_status' => $checkoutSession['payment_status'],
-                        'metadata' => json_encode($checkoutSession['metadata']),
+                        'metadata' => $metadata,
                     ]);
 
                     // Log the order creation

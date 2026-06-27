@@ -8,8 +8,6 @@ use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Invoices\DownloadInvoiceController;
 use App\Http\Controllers\OgImageController;
-use App\Http\Controllers\Payments\LemonSqueezyController;
-use App\Http\Controllers\Payments\PaddleController;
 use App\Http\Controllers\Payments\StripeController;
 use App\Http\Controllers\RoadmapController;
 use App\Http\Controllers\SitemapController;
@@ -65,11 +63,6 @@ Route::get('og-image-testing', function () {
     ]);
 });
 
-// Paddle Checkout Price endpoint is outside of auth middleware
-// If you want to use it for authenticated users, move it inside the middleware
-// Instructions for authenticated users are in the comments of the PaddleController.php file
-Route::get('paddle/checkout/{price}', [PaddleController::class, 'checkout'])->name('paddle.checkout');
-
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
@@ -102,24 +95,6 @@ Route::middleware([
         Route::get('success', [StripeController::class, 'success'])->name('success');
         Route::get('error', [StripeController::class, 'error'])->name('error');
         Route::get('billing', [StripeController::class, 'billing'])->name('billing'); // Redirects to Customer Portal
-    });
-
-    Route::prefix('lemonsqueezy')->name('lemonsqueezy.')->group(function () {
-        Route::get('subscription-checkout/{productId}/{variantId}', [LemonSqueezyController::class, 'subscriptionCheckout'])->name('subscription.checkout');
-        // If your product checkout does not require auth user,
-        // move this part outside "auth:sanctum" middleware and change the logic inside method
-        Route::get('product-checkout/{variantId}', [LemonSqueezyController::class, 'productCheckout'])->name('product.checkout');
-        Route::get('billing', [LemonSqueezyController::class, 'billing'])->name('billing'); // Redirects to Customer Portal
-    });
-
-    // Paddle Routes
-    // Paddle Plan Checkouts can be found in resources/js/Components/Paddle/PaddlePlans.vue component
-
-    Route::prefix('paddle')->name('paddle.')->group(function () {
-        Route::get('/subscription/{price}/swap', [PaddleController::class, 'subscriptionSwap'])
-            ->name('subscription.swap');
-        Route::get('/subscription/cancel', [PaddleController::class, 'subscriptionCancel'])
-            ->name('subscription.cancel');
     });
 
     Route::middleware([Subscribed::class])->group(function () {

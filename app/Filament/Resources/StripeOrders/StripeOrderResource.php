@@ -35,13 +35,21 @@ class StripeOrderResource extends Resource
                 Section::make('Order Information')
                     ->description('Stripe order details and customer information')
                     ->schema([
+                        Select::make('team_id')
+                            ->label('Billed Team')
+                            ->relationship('team', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->helperText('The team that owns this Stripe order.')
+                            ->columnSpan(1),
+
                         Select::make('user_id')
-                            ->label('Customer')
+                            ->label('Account Contact')
                             ->relationship('user', 'name')
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->helperText('The customer who placed this order')
+                            ->helperText('The user contact retained for order history.')
                             ->columnSpan(1),
 
                         TextInput::make('amount')
@@ -131,8 +139,12 @@ class StripeOrderResource extends Resource
             ->columns([
                 TextColumn::make('stripe_id')
                     ->searchable(),
+                TextColumn::make('team.name')
+                    ->label('Team')
+                    ->searchable(),
                 TextColumn::make('user.name')
-                    ->numeric()
+                    ->label('Account Contact')
+                    ->searchable()
                     ->sortable(),
                 TextColumn::make('price_id')
                     ->searchable(),

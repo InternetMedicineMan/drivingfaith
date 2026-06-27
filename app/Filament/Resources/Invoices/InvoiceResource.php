@@ -303,12 +303,15 @@ class InvoiceResource extends Resource
 
     public static function stripeOrderCreateUrl(Model $record): string
     {
-        $record->loadMissing(['user', 'price.product']);
+        $record->loadMissing(['team.owner', 'user', 'price.product']);
+
+        $team = $record->team;
 
         return self::prefilledCreateUrl([
-            'user_id' => $record->user_id,
-            'customer_name' => $record->user?->name,
-            'customer_email' => $record->user?->email,
+            'team_id' => $team?->id,
+            'user_id' => $team?->user_id ?? $record->user_id,
+            'customer_name' => $team?->name ?? $record->user?->name,
+            'customer_email' => $team?->owner?->email ?? $record->user?->email,
             'currency' => $record->currency,
             'item_description' => $record->price?->product?->name ?? $record->price_id,
             'quantity' => 1,

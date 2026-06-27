@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StripeOrder extends Model
 {
@@ -19,18 +20,17 @@ class StripeOrder extends Model
         'metadata' => 'array',
     ];
 
-    /**
-     * Get the user that owns the order.
-     */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Get the price that the order is for.
-     */
-    public function price()
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class);
+    }
+
+    public function price(): BelongsTo
     {
         return $this->belongsTo(Price::class, 'price_id', 'stripe_id');
     }

@@ -64,6 +64,7 @@ class StripeController extends Controller
             'metadata' => [
                 'price' => $price,
                 'team_id' => $team->id,
+                'user_id' => $request->user()->id,
             ],
         ]);
     }
