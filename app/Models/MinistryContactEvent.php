@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class MinistryContactEvent extends Model
@@ -49,6 +50,11 @@ class MinistryContactEvent extends Model
     public function eventable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(MinistryContactTask::class, 'created_from_event_id');
     }
 
     protected static function booted(): void

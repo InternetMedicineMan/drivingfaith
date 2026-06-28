@@ -50,6 +50,11 @@ class MinistryContact extends Model
         return $this->hasMany(MinistryContactEvent::class, 'contact_id')->latest('occurred_at');
     }
 
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(MinistryContactTask::class, 'contact_id')->orderBy('status')->orderBy('due_at');
+    }
+
     public function podCampaignEnrollments(): HasMany
     {
         return $this->hasMany(PodCampaignEnrollment::class, 'contact_id');

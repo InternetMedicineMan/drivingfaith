@@ -27,7 +27,7 @@ class PodCampaignMailingResource extends Resource
 {
     protected static ?string $model = PodCampaignMailing::class;
 
-    protected static ?string $navigationLabel = 'POD Mailings';
+    protected static ?string $navigationLabel = 'Campaign Mailing Steps';
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedEnvelope;
 
@@ -78,11 +78,6 @@ class PodCampaignMailingResource extends Resource
                             ->relationship('coverLetterTemplate', 'name', fn ($query) => $query->where('type', 'cover_letter'))
                             ->searchable()
                             ->preload(),
-                        Select::make('bible_study_template_id')
-                            ->label('Bible Study Template')
-                            ->relationship('bibleStudyTemplate', 'name', fn ($query) => $query->where('type', 'bible_study'))
-                            ->searchable()
-                            ->preload(),
                         Textarea::make('description')
                             ->rows(3)
                             ->columnSpanFull(),
@@ -125,7 +120,8 @@ class PodCampaignMailingResource extends Resource
                     ])
                     ->columns(2)
                     ->collapsible(),
-                Section::make('Pages')
+                Section::make('Bible Study Pages')
+                    ->description('Enter the full HTML pages for this mailing step. Each page should include its own page wrapper/layout for Lob.')
                     ->schema([
                         Repeater::make('pages')
                             ->relationship('pages')
@@ -135,14 +131,15 @@ class PodCampaignMailingResource extends Resource
                                     ->required()
                                     ->minValue(1),
                                 TextInput::make('name')
+                                    ->label('Page Name')
                                     ->maxLength(255),
                                 TextInput::make('html_path')
                                     ->label('HTML Path')
                                     ->maxLength(255)
                                     ->columnSpanFull(),
                                 Textarea::make('html_content')
-                                    ->label('HTML Content')
-                                    ->rows(8)
+                                    ->label('Full Page HTML')
+                                    ->rows(14)
                                     ->columnSpanFull(),
                                 Select::make('paper_size')
                                     ->options([
@@ -166,7 +163,7 @@ class PodCampaignMailingResource extends Resource
                             ])
                             ->columns(2)
                             ->defaultItems(1)
-                            ->addActionLabel('Add page')
+                            ->addActionLabel('Add Bible study page')
                             ->columnSpanFull(),
                     ]),
             ]);
@@ -194,10 +191,8 @@ class PodCampaignMailingResource extends Resource
                     ->sortable(),
                 IconColumn::make('pause_until_reply')
                     ->boolean(),
-                TextColumn::make('bibleStudyTemplate.name')
-                    ->label('Bible Study'),
                 TextColumn::make('pages_count')
-                    ->label('Pages')
+                    ->label('Bible Study Pages')
                     ->counts('pages')
                     ->sortable(),
             ])

@@ -8,6 +8,7 @@ use App\Filament\Resources\PodContentTemplates\PodContentTemplateResource;
 use App\Filament\Resources\Teams\TeamResource;
 use App\Models\MinistryContact;
 use App\Models\MinistryContactEvent;
+use App\Models\MinistryContactTask;
 use App\Models\PodCampaign;
 use App\Models\PodCampaignEnrollment;
 use App\Models\PodCampaignMailing;
@@ -42,22 +43,12 @@ it('models a team scoped bible study pod campaign setup', function () {
         'html_content' => '<html><body>Hello {{ first_name }}</body></html>',
     ]);
 
-    $bibleStudy = PodContentTemplate::query()->create([
-        'team_id' => $team->id,
-        'type' => 'bible_study',
-        'name' => 'Romans Lesson 1',
-        'slug' => 'romans-lesson-1',
-        'status' => 'active',
-        'html_content' => '<html><body>Romans lesson content</body></html>',
-    ]);
-
     $mailing = PodCampaignMailing::query()->create([
         'campaign_id' => $campaign->id,
         'name' => 'Lesson 1',
         'sequence' => 1,
         'pause_until_reply' => true,
         'cover_letter_template_id' => $coverLetter->id,
-        'bible_study_template_id' => $bibleStudy->id,
         'status' => 'active',
     ]);
 
@@ -65,7 +56,7 @@ it('models a team scoped bible study pod campaign setup', function () {
         'campaign_mailing_id' => $mailing->id,
         'page_number' => 1,
         'name' => 'Lesson Content',
-        'html_content' => '<html><body>Lesson page</body></html>',
+        'html_content' => '<div class="page"><p>Romans lesson content for {{ contact.first_name }}</p></div>',
     ]);
 
     $contact = MinistryContact::query()->create([
@@ -90,6 +81,24 @@ it('models a team scoped bible study pod campaign setup', function () {
         'summary' => 'Requested the Romans Bible Study.',
     ]);
 
+    $callEvent = MinistryContactEvent::query()->create([
+        'contact_id' => $contact->id,
+        'type' => 'phone_call_requested',
+        'source' => 'pod',
+        'source_label' => 'Response Card',
+        'summary' => 'Requested a phone call.',
+    ]);
+
+    MinistryContactTask::query()->create([
+        'contact_id' => $contact->id,
+        'created_from_event_id' => $callEvent->id,
+        'type' => 'phone_call',
+        'status' => 'open',
+        'priority' => 'normal',
+        'title' => 'Call Ada about Bible Study response',
+        'due_at' => now()->addDay(),
+    ]);
+
     $enrollment = PodCampaignEnrollment::query()->create([
         'team_id' => $team->id,
         'campaign_id' => $campaign->id,
@@ -101,14 +110,15 @@ it('models a team scoped bible study pod campaign setup', function () {
     ]);
 
     expect($team->podCampaigns)->toHaveCount(1)
-        ->and($team->podContentTemplates)->toHaveCount(2)
+        ->and($team->podContentTemplates)->toHaveCount(1)
         ->and($team->ministryContacts)->toHaveCount(1)
-        ->and($contact->events)->toHaveCount(1)
+        ->and($contact->events)->toHaveCount(2)
+        ->and($contact->tasks)->toHaveCount(1)
+        ->and($contact->tasks->first()->team_id)->toBe($team->id)
         ->and($contact->events->first()->team_id)->toBe($team->id)
         ->and($campaign->mailings)->toHaveCount(1)
         ->and($mailing->pages)->toHaveCount(1)
         ->and($mailing->coverLetterTemplate->is($coverLetter))->toBeTrue()
-        ->and($mailing->bibleStudyTemplate->is($bibleStudy))->toBeTrue()
         ->and($enrollment->contact->full_name)->toBe('Ada Lovelace')
         ->and($enrollment->nextMailing->is($mailing))->toBeTrue();
 });

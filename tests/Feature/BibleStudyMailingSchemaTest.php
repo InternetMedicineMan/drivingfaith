@@ -57,6 +57,18 @@ it('creates the bible study mailing schema', function () {
             'source',
             'summary',
         ]))->toBeTrue()
+        ->and(Schema::hasTable('ministry_contact_tasks'))->toBeTrue()
+        ->and(Schema::hasColumns('ministry_contact_tasks', [
+            'team_id',
+            'contact_id',
+            'created_from_event_id',
+            'assigned_to_user_id',
+            'status',
+            'type',
+            'title',
+            'due_at',
+            'completed_at',
+        ]))->toBeTrue()
         ->and(Schema::hasTable('pod_campaign_enrollments'))->toBeTrue()
         ->and(Schema::hasColumns('pod_campaign_enrollments', [
             'contact_id',
@@ -102,24 +114,12 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
-    $bibleStudyTemplateId = DB::table('pod_content_templates')->insertGetId([
-        'team_id' => $team->id,
-        'type' => 'bible_study',
-        'name' => 'Romans Lesson 1',
-        'slug' => 'romans-lesson-1',
-        'status' => 'active',
-        'html_content' => '<html><body>Romans study content</body></html>',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
     $mailingId = DB::table('pod_campaign_mailings')->insertGetId([
         'campaign_id' => $campaignId,
         'name' => 'Lesson 1',
         'sequence' => 1,
         'pause_until_reply' => true,
         'cover_letter_template_id' => $coverTemplateId,
-        'bible_study_template_id' => $bibleStudyTemplateId,
         'status' => 'active',
         'provider_template_id' => 'tmpl_lesson_1',
         'created_at' => now(),
@@ -129,8 +129,8 @@ it('stores campaign enrollment and delivery state', function () {
     DB::table('pod_campaign_mailing_pages')->insert([
         'campaign_mailing_id' => $mailingId,
         'page_number' => 1,
-        'name' => 'Cover Letter',
-        'html_content' => '<html><body>Welcome</body></html>',
+        'name' => 'Lesson Page 1',
+        'html_content' => '<div class="page"><p>Romans study content for {{ contact.first_name }}</p></div>',
         'created_at' => now(),
         'updated_at' => now(),
     ]);
@@ -174,7 +174,6 @@ it('stores campaign enrollment and delivery state', function () {
         'status' => 'planned',
         'scheduled_for' => now()->toDateString(),
         'cover_letter_template_id' => $coverTemplateId,
-        'bible_study_template_id' => $bibleStudyTemplateId,
         'override_cover_letter_html' => '<html><body>Custom one-time note</body></html>',
         'cover_letter_override_reason' => 'Personal pastoral follow-up.',
         'created_at' => now(),
@@ -217,9 +216,34 @@ it('stores campaign enrollment and delivery state', function () {
         'updated_at' => now(),
     ]);
 
+    $eventId = DB::table('ministry_contact_events')->insertGetId([
+        'team_id' => $team->id,
+        'contact_id' => $contactId,
+        'type' => 'phone_call_requested',
+        'source' => 'pod',
+        'source_label' => 'Response Card',
+        'summary' => 'Requested a phone call.',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('ministry_contact_tasks')->insert([
+        'team_id' => $team->id,
+        'contact_id' => $contactId,
+        'created_from_event_id' => $eventId,
+        'type' => 'phone_call',
+        'status' => 'open',
+        'priority' => 'normal',
+        'title' => 'Call Ada about Bible Study response',
+        'due_at' => now()->addDay(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
     expect(DB::table('pod_campaign_enrollments')->where('status', 'active')->count())->toBe(1)
         ->and(DB::table('pod_enrollment_mailings')->whereNotNull('override_cover_letter_html')->count())->toBe(1)
         ->and(DB::table('pod_deliveries')->where('status', 'queued')->count())->toBe(1)
         ->and(DB::table('pod_replies')->count())->toBe(1)
-        ->and(DB::table('ministry_contact_events')->where('contact_id', $contactId)->count())->toBe(1);
+        ->and(DB::table('ministry_contact_events')->where('contact_id', $contactId)->count())->toBe(2)
+        ->and(DB::table('ministry_contact_tasks')->where('contact_id', $contactId)->where('status', 'open')->count())->toBe(1);
 });

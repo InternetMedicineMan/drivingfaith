@@ -47,4 +47,14 @@ class PodEnrollmentMailing extends Model
     {
         return $this->belongsTo(PodCampaignMailing::class, 'campaign_mailing_id');
     }
+
+    public function coverLetterTemplate(): BelongsTo
+    {
+        return $this->belongsTo(PodContentTemplate::class, 'cover_letter_template_id');
+    }
+
+    public function overrideCoverLetterTemplate(): BelongsTo
+    {
+        return $this->belongsTo(PodContentTemplate::class, 'override_cover_letter_template_id');
+    }
 }

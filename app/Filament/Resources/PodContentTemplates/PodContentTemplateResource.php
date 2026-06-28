@@ -24,7 +24,7 @@ class PodContentTemplateResource extends Resource
 {
     protected static ?string $model = PodContentTemplate::class;
 
-    protected static ?string $navigationLabel = 'POD Content Templates';
+    protected static ?string $navigationLabel = 'Cover Letter Templates';
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
@@ -38,7 +38,7 @@ class PodContentTemplateResource extends Resource
     {
         return $schema
             ->components([
-                Section::make('Template')
+                Section::make('Reusable Cover Letter')
                     ->schema([
                         Select::make('team_id')
                             ->label('Ministry Group')
@@ -49,11 +49,9 @@ class PodContentTemplateResource extends Resource
                         Select::make('type')
                             ->options([
                                 'cover_letter' => 'Cover Letter',
-                                'bible_study' => 'Bible Study',
-                                'reply_card' => 'Reply Card',
                                 'envelope_insert' => 'Envelope Insert',
                             ])
-                            ->default('bible_study')
+                            ->default('cover_letter')
                             ->required(),
                         TextInput::make('name')
                             ->required()
@@ -84,7 +82,7 @@ class PodContentTemplateResource extends Resource
                             ->maxLength(255)
                             ->columnSpanFull(),
                         Textarea::make('html_content')
-                            ->label('HTML Content')
+                            ->label('Template HTML')
                             ->rows(14)
                             ->columnSpanFull(),
                     ])
@@ -123,8 +121,6 @@ class PodContentTemplateResource extends Resource
                 SelectFilter::make('type')
                     ->options([
                         'cover_letter' => 'Cover Letter',
-                        'bible_study' => 'Bible Study',
-                        'reply_card' => 'Reply Card',
                         'envelope_insert' => 'Envelope Insert',
                     ]),
                 SelectFilter::make('status')

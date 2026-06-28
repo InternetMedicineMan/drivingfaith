@@ -5,6 +5,7 @@ namespace App\Filament\Resources\PodCampaignEnrollments;
 use App\Filament\Resources\PodCampaignEnrollments\Pages\CreatePodCampaignEnrollment;
 use App\Filament\Resources\PodCampaignEnrollments\Pages\EditPodCampaignEnrollment;
 use App\Filament\Resources\PodCampaignEnrollments\Pages\ListPodCampaignEnrollments;
+use App\Filament\Resources\PodCampaignEnrollments\RelationManagers\EnrollmentMailingsRelationManager;
 use App\Models\PodCampaignEnrollment;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -159,6 +160,13 @@ class PodCampaignEnrollmentResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            EnrollmentMailingsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

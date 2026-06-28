@@ -55,11 +55,6 @@ class MailingsRelationManager extends RelationManager
                     ->relationship('coverLetterTemplate', 'name', fn ($query) => $query->where('type', 'cover_letter'))
                     ->searchable()
                     ->preload(),
-                Select::make('bible_study_template_id')
-                    ->label('Bible Study Template')
-                    ->relationship('bibleStudyTemplate', 'name', fn ($query) => $query->where('type', 'bible_study'))
-                    ->searchable()
-                    ->preload(),
                 Textarea::make('description')
                     ->rows(3)
                     ->columnSpanFull(),
@@ -71,19 +66,20 @@ class MailingsRelationManager extends RelationManager
                             ->required()
                             ->minValue(1),
                         TextInput::make('name')
+                            ->label('Page Name')
                             ->maxLength(255),
                         TextInput::make('html_path')
                             ->label('HTML Path')
                             ->maxLength(255)
                             ->columnSpanFull(),
                         Textarea::make('html_content')
-                            ->label('HTML Content')
-                            ->rows(6)
+                            ->label('Full Page HTML')
+                            ->rows(10)
                             ->columnSpanFull(),
                     ])
                     ->columns(2)
                     ->defaultItems(1)
-                    ->addActionLabel('Add page')
+                    ->addActionLabel('Add Bible study page')
                     ->columnSpanFull(),
             ])
             ->columns(2);
@@ -104,10 +100,8 @@ class MailingsRelationManager extends RelationManager
                     ->sortable(),
                 IconColumn::make('pause_until_reply')
                     ->boolean(),
-                TextColumn::make('bibleStudyTemplate.name')
-                    ->label('Bible Study'),
                 TextColumn::make('pages_count')
-                    ->label('Pages')
+                    ->label('Bible Study Pages')
                     ->counts('pages')
                     ->sortable(),
             ])

@@ -6,6 +6,7 @@ use App\Filament\Resources\MinistryContacts\Pages\CreateMinistryContact;
 use App\Filament\Resources\MinistryContacts\Pages\EditMinistryContact;
 use App\Filament\Resources\MinistryContacts\Pages\ListMinistryContacts;
 use App\Filament\Resources\MinistryContacts\RelationManagers\EventsRelationManager;
+use App\Filament\Resources\MinistryContacts\RelationManagers\TasksRelationManager;
 use App\Models\MinistryContact;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -148,6 +149,10 @@ class MinistryContactResource extends Resource
                     ->label('Timeline')
                     ->counts('events')
                     ->sortable(),
+                TextColumn::make('tasks_count')
+                    ->label('Tasks')
+                    ->counts('tasks')
+                    ->sortable(),
                 TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable(),
@@ -189,6 +194,7 @@ class MinistryContactResource extends Resource
     public static function getRelations(): array
     {
         return [
+            TasksRelationManager::class,
             EventsRelationManager::class,
         ];
     }

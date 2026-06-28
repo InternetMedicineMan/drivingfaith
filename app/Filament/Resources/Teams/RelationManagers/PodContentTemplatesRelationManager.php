@@ -19,7 +19,7 @@ class PodContentTemplatesRelationManager extends RelationManager
 {
     protected static string $relationship = 'podContentTemplates';
 
-    protected static ?string $title = 'POD Content Templates';
+    protected static ?string $title = 'Cover Letter Templates';
 
     public function form(Schema $schema): Schema
     {
@@ -28,11 +28,9 @@ class PodContentTemplatesRelationManager extends RelationManager
                 Select::make('type')
                     ->options([
                         'cover_letter' => 'Cover Letter',
-                        'bible_study' => 'Bible Study',
-                        'reply_card' => 'Reply Card',
                         'envelope_insert' => 'Envelope Insert',
                     ])
-                    ->default('bible_study')
+                    ->default('cover_letter')
                     ->required(),
                 TextInput::make('name')
                     ->required()
@@ -63,7 +61,7 @@ class PodContentTemplatesRelationManager extends RelationManager
                     ->maxLength(255)
                     ->columnSpanFull(),
                 Textarea::make('html_content')
-                    ->label('HTML Content')
+                    ->label('Template HTML')
                     ->rows(12)
                     ->columnSpanFull(),
             ])

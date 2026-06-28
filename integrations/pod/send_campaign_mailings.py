@@ -1,4 +1,6 @@
 import argparse
+import html
+import re
 from datetime import date, timedelta
 
 from lob_python.exceptions import ApiException
@@ -9,6 +11,7 @@ from settings import POD_BATCH_LIMIT
 
 
 REQUIRED_FIELDS = ("first_name", "last_name", "address1", "city", "state", "zip")
+TEMPLATE_VARIABLE_PATTERN = re.compile(r"{{\s*([a-zA-Z0-9_.]+)\s*}}")
 
 
 def fetch_due_mailings(conn, limit, campaign_id=None):
@@ -20,11 +23,15 @@ def fetch_due_mailings(conn, limit, campaign_id=None):
             contacts.id AS contact_id,
             contacts.first_name,
             contacts.last_name,
+            contacts.organization,
+            contacts.email,
+            contacts.phone,
             contacts.address1,
             contacts.address2,
             contacts.city,
             contacts.state,
             contacts.zip,
+            contacts.country,
             campaigns.name AS campaign_name,
             planned.id AS enrollment_mailing_id,
             planned.sequence,
@@ -44,8 +51,7 @@ def fetch_due_mailings(conn, limit, campaign_id=None):
             mailings.return_envelope,
             mailings.perforated_page,
             cover_templates.html_content AS cover_letter_html,
-            override_cover_templates.html_content AS override_cover_letter_template_html,
-            bible_study_templates.html_content AS bible_study_html
+            override_cover_templates.html_content AS override_cover_letter_template_html
         FROM pod_enrollment_mailings planned
         INNER JOIN pod_campaign_enrollments enrollments
             ON enrollments.id = planned.campaign_enrollment_id
@@ -59,8 +65,6 @@ def fetch_due_mailings(conn, limit, campaign_id=None):
             ON cover_templates.id = planned.cover_letter_template_id
         LEFT JOIN pod_content_templates override_cover_templates
             ON override_cover_templates.id = planned.override_cover_letter_template_id
-        LEFT JOIN pod_content_templates bible_study_templates
-            ON bible_study_templates.id = planned.bible_study_template_id
         WHERE enrollments.status = 'active'
             AND campaigns.status = 'active'
             AND mailings.status = 'active'
@@ -146,6 +150,20 @@ def fetch_next_planned_mailing(conn, enrollment_id, current_sequence):
     return cursor.fetchone()
 
 
+def fetch_mailing_pages(conn, mailing_id):
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT page_number, name, html_content
+        FROM pod_campaign_mailing_pages
+        WHERE campaign_mailing_id = %s
+        ORDER BY page_number
+        """,
+        (mailing_id,),
+    )
+    return cursor.fetchall()
+
+
 def fetch_enrollment_for_reply(conn, enrollment_id):
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
@@ -199,10 +217,9 @@ def plan_enrollment(conn, enrollment_id):
                 status,
                 scheduled_for,
                 cover_letter_template_id,
-                bible_study_template_id,
                 created_at,
                 updated_at
-            ) VALUES (%s, %s, %s, %s, %s, 'planned', %s, %s, %s, NOW(), NOW())
+            ) VALUES (%s, %s, %s, %s, %s, 'planned', %s, %s, NOW(), NOW())
             """,
             (
                 enrollment["team_id"],
@@ -212,7 +229,6 @@ def plan_enrollment(conn, enrollment_id):
                 mailing["sequence"],
                 scheduled_for,
                 mailing["cover_letter_template_id"],
-                mailing["bible_study_template_id"],
             ),
         )
 
@@ -230,19 +246,48 @@ def plan_campaign(conn, campaign_id):
     return planned_count
 
 
-def render_template(template, variables):
+def build_render_variables(contact):
+    full_name = f"{contact.get('first_name') or ''} {contact.get('last_name') or ''}".strip()
+    contact_values = {
+        "first_name": contact.get("first_name") or "",
+        "last_name": contact.get("last_name") or "",
+        "full_name": full_name,
+        "organization": contact.get("organization") or "",
+        "email": contact.get("email") or "",
+        "phone": contact.get("phone") or "",
+        "address1": contact.get("address1") or "",
+        "address2": contact.get("address2") or "",
+        "city": contact.get("city") or "",
+        "state": contact.get("state") or "",
+        "zip": contact.get("zip") or "",
+        "country": contact.get("country") or "US",
+    }
+
+    variables = {}
+    for key, value in contact_values.items():
+        escaped_value = html.escape(str(value), quote=True)
+        variables[key] = escaped_value
+        variables[f"contact.{key}"] = escaped_value
+
+    return variables
+
+
+def render_template(template, variables, template_label):
     if not template:
         return ""
 
-    rendered = template
-    for key, value in variables.items():
-        rendered = rendered.replace("{{ " + key + " }}", str(value))
-        rendered = rendered.replace("{{" + key + "}}", str(value))
+    markers = set(TEMPLATE_VARIABLE_PATTERN.findall(template))
+    unknown_markers = sorted(markers - set(variables.keys()))
+    if unknown_markers:
+        raise RuntimeError(
+            f"{template_label} contains unsupported merge variable(s): "
+            + ", ".join(f"{{{{ {marker} }}}}" for marker in unknown_markers)
+        )
 
-    return rendered
+    return TEMPLATE_VARIABLE_PATTERN.sub(lambda match: variables[match.group(1)], template)
 
 
-def resolve_rendered_html(row, contact, campaign, mailing):
+def resolve_rendered_html(conn, row, contact):
     if row.get("rendered_html"):
         return row["rendered_html"]
 
@@ -252,18 +297,23 @@ def resolve_rendered_html(row, contact, campaign, mailing):
         or row.get("cover_letter_html")
         or ""
     )
-    bible_study_html = row.get("bible_study_html") or ""
+    pages = fetch_mailing_pages(conn, row["mailing_id"])
 
-    if not cover_html and not bible_study_html:
+    if not cover_html and not pages:
         return None
 
-    variables = build_campaign_merge_variables(contact, campaign, mailing)
-    rendered_cover = render_template(cover_html, variables)
-    rendered_study = render_template(bible_study_html, variables)
+    variables = build_render_variables(contact)
+    rendered_parts = []
 
-    return "\n<div class=\"page-break-after\"></div>\n".join(
-        part for part in [rendered_cover, rendered_study] if part
-    )
+    if cover_html:
+        rendered_parts.append(render_template(cover_html, variables, "Cover letter"))
+
+    for page in pages:
+        if page.get("html_content"):
+            page_label = page.get("name") or f"Page {page['page_number']}"
+            rendered_parts.append(render_template(page["html_content"], variables, page_label))
+
+    return "\n".join(part for part in rendered_parts if part)
 
 
 def save_rendered_html(conn, enrollment_mailing_id, rendered_html):
@@ -603,11 +653,15 @@ def as_contact(row):
         "id": row["contact_id"],
         "first_name": row["first_name"],
         "last_name": row["last_name"],
+        "organization": row.get("organization"),
+        "email": row.get("email"),
+        "phone": row.get("phone"),
         "address1": row["address1"],
         "address2": row["address2"],
         "city": row["city"],
         "state": row["state"],
         "zip": row["zip"],
+        "country": row.get("country") or "US",
     }
 
 
@@ -729,7 +783,7 @@ def run():
                 print(f"Skipping planned mailing {row['enrollment_mailing_id']}: missing {', '.join(missing)}")
                 continue
 
-            rendered_html = resolve_rendered_html(row, contact, campaign, as_mailing(row))
+            rendered_html = resolve_rendered_html(conn, row, contact)
             mailing = as_mailing(row, rendered_html)
 
             if dry_run:
