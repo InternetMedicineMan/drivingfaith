@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+
 return [
 
     /*
@@ -37,7 +39,7 @@ return [
     ],
 
     'stripe' => [
-        'model' => App\Models\User::class,
+        'model' => User::class,
         'key' => env('STRIPE_KEY'),
         'secret' => env('STRIPE_SECRET'),
         'trial_period_days' => env('STRIPE_TRIAL_PERIOD_DAYS', 7),
@@ -97,5 +99,12 @@ return [
 
     'resend' => [
         'key' => env('RESEND_API_KEY'),
+    ],
+
+    'lob' => [
+        'key' => env('LOB_API_KEY'),
+        'public_domain' => rtrim(env('LOB_PUBLIC_DOMAIN', env('APP_URL', '')), '/'),
+        'intro_template_id' => env('LOB_INTRO_TEMPLATE_ID'),
+        'from_address_id' => env('LOB_FROM_ADDRESS_ID'),
     ],
 ];

@@ -9,6 +9,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Invoices\DownloadInvoiceController;
 use App\Http\Controllers\OgImageController;
 use App\Http\Controllers\Payments\StripeController;
+use App\Http\Controllers\PodEnrollmentMailingRenderController;
 use App\Http\Controllers\RoadmapController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Middleware\Subscribed;
@@ -54,6 +55,8 @@ Route::get('/blog/{article:slug}', [BlogController::class, 'article'])->name('bl
 Route::get('/roadmap', [RoadmapController::class, 'index'])->name('roadmap.index');
 
 Route::get('og-image/{title?}/{description?}', OgImageController::class)->name('og-image');
+Route::get('pod/render/enrollment-mailings/{podEnrollmentMailing}', PodEnrollmentMailingRenderController::class)
+    ->name('pod.render.enrollment-mailing');
 
 // For testing and modifying the default image template
 Route::get('og-image-testing', function () {

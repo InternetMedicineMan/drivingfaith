@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PodCampaigns\RelationManagers;
 
+use App\Models\PodCampaignMailing;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -17,6 +18,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Validation\Rule;
 
 class MailingsRelationManager extends RelationManager
 {
@@ -32,12 +34,25 @@ class MailingsRelationManager extends RelationManager
                 TextInput::make('sequence')
                     ->numeric()
                     ->required()
-                    ->minValue(1),
+                    ->default(fn (RelationManager $livewire): int => static::nextSequenceForCampaign((int) $livewire->getOwnerRecord()->getKey()))
+                    ->minValue(1)
+                    ->rules(fn (RelationManager $livewire, $record): array => [
+                        tap(Rule::unique('pod_campaign_mailings', 'sequence')
+                            ->where('campaign_id', $livewire->getOwnerRecord()->getKey()), function ($rule) use ($record): void {
+                                if ($record?->exists) {
+                                    $rule->ignore($record->getKey());
+                                }
+                            }),
+                    ])
+                    ->validationMessages([
+                        'unique' => 'This campaign already has a mailing with that sequence number. Use the next step number instead.',
+                    ]),
                 TextInput::make('delay_days_after_previous')
-                    ->label('Delay Days')
+                    ->label('Days After Previous Mailing')
                     ->numeric()
                     ->default(0)
-                    ->minValue(0),
+                    ->minValue(0)
+                    ->helperText('For sequence 1, use 0. For later steps, this is the wait after the previous mailing is sent before this step is scheduled.'),
                 Select::make('status')
                     ->options([
                         'draft' => 'Draft',
@@ -106,7 +121,8 @@ class MailingsRelationManager extends RelationManager
                     ->sortable(),
             ])
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()
+                    ->createAnother(false),
             ])
             ->recordActions([
                 EditAction::make(),
@@ -117,5 +133,12 @@ class MailingsRelationManager extends RelationManager
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    private static function nextSequenceForCampaign(int $campaignId): int
+    {
+        return ((int) PodCampaignMailing::query()
+            ->where('campaign_id', $campaignId)
+            ->max('sequence')) + 1;
     }
 }

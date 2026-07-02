@@ -14,6 +14,7 @@ use App\Models\PodCampaignEnrollment;
 use App\Models\PodCampaignMailing;
 use App\Models\PodCampaignMailingPage;
 use App\Models\PodContentTemplate;
+use App\Models\PodEnrollmentMailing;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,6 +43,8 @@ it('models a team scoped bible study pod campaign setup', function () {
         'status' => 'active',
         'html_content' => '<html><body>Hello {{ first_name }}</body></html>',
     ]);
+
+    expect(PodCampaignMailingResource::nextSequenceForCampaign($campaign->id))->toBe(1);
 
     $mailing = PodCampaignMailing::query()->create([
         'campaign_id' => $campaign->id,
@@ -109,6 +112,27 @@ it('models a team scoped bible study pod campaign setup', function () {
         'current_sequence' => 1,
     ]);
 
+    $plannedMailing = PodEnrollmentMailing::query()->create([
+        'team_id' => $team->id,
+        'campaign_enrollment_id' => $enrollment->id,
+        'campaign_mailing_id' => $mailing->id,
+        'contact_id' => $contact->id,
+        'sequence' => 1,
+        'status' => 'planned',
+        'scheduled_for' => now()->toDateString(),
+        'cover_letter_template_id' => $coverLetter->id,
+        'render_token' => 'test-render-token',
+    ]);
+
+    $this->get("/pod/render/enrollment-mailings/{$plannedMailing->id}?token=wrong-token")
+        ->assertNotFound();
+
+    $this->get("/pod/render/enrollment-mailings/{$plannedMailing->id}?token=test-render-token")
+        ->assertOk()
+        ->assertHeader('Content-Type', 'text/html; charset=UTF-8')
+        ->assertSee('Hello Ada', false)
+        ->assertSee('Romans lesson content for Ada', false);
+
     expect($team->podCampaigns)->toHaveCount(1)
         ->and($team->podContentTemplates)->toHaveCount(1)
         ->and($team->ministryContacts)->toHaveCount(1)
@@ -117,9 +141,12 @@ it('models a team scoped bible study pod campaign setup', function () {
         ->and($contact->tasks->first()->team_id)->toBe($team->id)
         ->and($contact->events->first()->team_id)->toBe($team->id)
         ->and($campaign->mailings)->toHaveCount(1)
+        ->and(PodCampaignMailingResource::nextSequenceForCampaign($campaign->id))->toBe(2)
+        ->and($mailing->perforated_page)->toBeNull()
         ->and($mailing->pages)->toHaveCount(1)
         ->and($mailing->coverLetterTemplate->is($coverLetter))->toBeTrue()
         ->and($enrollment->contact->full_name)->toBe('Ada Lovelace')
+        ->and($plannedMailing->refresh()->rendered_checksum)->not->toBeNull()
         ->and($enrollment->nextMailing->is($mailing))->toBeTrue();
 });
 

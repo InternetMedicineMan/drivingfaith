@@ -85,6 +85,8 @@ it('creates the bible study mailing schema', function () {
             'override_cover_letter_template_id',
             'override_cover_letter_html',
             'rendered_html',
+            'render_token',
+            'rendered_checksum',
         ]))->toBeTrue()
         ->and(Schema::hasTable('pod_deliveries'))->toBeTrue()
         ->and(Schema::hasTable('pod_replies'))->toBeTrue();

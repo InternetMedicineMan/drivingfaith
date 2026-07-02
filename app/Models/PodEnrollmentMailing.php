@@ -23,6 +23,8 @@ class PodEnrollmentMailing extends Model
         'override_cover_letter_html',
         'cover_letter_override_reason',
         'rendered_html',
+        'render_token',
+        'rendered_checksum',
         'rendered_at',
         'sent_at',
         'metadata',
@@ -46,6 +48,11 @@ class PodEnrollmentMailing extends Model
     public function campaignMailing(): BelongsTo
     {
         return $this->belongsTo(PodCampaignMailing::class, 'campaign_mailing_id');
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(MinistryContact::class, 'contact_id');
     }
 
     public function coverLetterTemplate(): BelongsTo

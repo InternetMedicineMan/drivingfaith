@@ -79,7 +79,7 @@ def send_campaign_mailing(contact, campaign, mailing):
     if not LOB_API_KEY:
         raise RuntimeError("Missing Lob API key. Set LOB_API_KEY or [lob] api_key in config.ini.")
 
-    mailing_file = mailing.get("rendered_html") or mailing.get("provider_template_id")
+    mailing_file = mailing.get("render_url") or mailing.get("rendered_html") or mailing.get("provider_template_id")
     if not mailing_file:
         raise RuntimeError(f"Mailing {mailing['id']} is missing rendered_html or provider_template_id.")
 

@@ -1,13 +1,15 @@
 import argparse
 import html
 import re
+import secrets
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 from lob_python.exceptions import ApiException
 
 from db import get_connection
 from pod.lob_letters import build_campaign_merge_variables, send_campaign_mailing
-from settings import POD_BATCH_LIMIT
+from settings import LOB_PUBLIC_DOMAIN, POD_BATCH_LIMIT
 
 
 REQUIRED_FIELDS = ("first_name", "last_name", "address1", "city", "state", "zip")
@@ -38,6 +40,7 @@ def fetch_due_mailings(conn, limit, campaign_id=None):
             planned.scheduled_for,
             planned.override_cover_letter_html,
             planned.rendered_html,
+            planned.render_token,
             mailings.id AS mailing_id,
             mailings.name AS mailing_name,
             mailings.delay_days_after_previous,
@@ -329,6 +332,44 @@ def save_rendered_html(conn, enrollment_mailing_id, rendered_html):
         (rendered_html, enrollment_mailing_id),
     )
     conn.commit()
+
+
+def ensure_render_token(conn, enrollment_mailing_id):
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT render_token
+        FROM pod_enrollment_mailings
+        WHERE id = %s
+        """,
+        (enrollment_mailing_id,),
+    )
+    row = cursor.fetchone()
+
+    if row and row.get("render_token"):
+        return row["render_token"]
+
+    render_token = secrets.token_urlsafe(32)
+    cursor.execute(
+        """
+        UPDATE pod_enrollment_mailings
+        SET render_token = %s,
+            updated_at = NOW()
+        WHERE id = %s
+        """,
+        (render_token, enrollment_mailing_id),
+    )
+    conn.commit()
+
+    return render_token
+
+
+def build_render_url(enrollment_mailing_id, render_token):
+    if not LOB_PUBLIC_DOMAIN:
+        raise RuntimeError("Missing LOB_PUBLIC_DOMAIN. Lob needs a public URL for rendered campaign mailings.")
+
+    query = urlencode({"token": render_token})
+    return f"{LOB_PUBLIC_DOMAIN}/pod/render/enrollment-mailings/{enrollment_mailing_id}?{query}"
 
 
 def ensure_delivery(conn, row):
@@ -681,6 +722,7 @@ def as_mailing(row, rendered_html=None):
         "provider": row["provider"],
         "provider_template_id": row["provider_template_id"],
         "rendered_html": rendered_html,
+        "render_url": row.get("render_url"),
         "mail_class": row["mail_class"],
         "color": row["color"],
         "double_sided": row["double_sided"],
@@ -783,20 +825,23 @@ def run():
                 print(f"Skipping planned mailing {row['enrollment_mailing_id']}: missing {', '.join(missing)}")
                 continue
 
-            rendered_html = resolve_rendered_html(conn, row, contact)
-            mailing = as_mailing(row, rendered_html)
+            render_token = row.get("render_token")
+            if not dry_run:
+                render_token = ensure_render_token(conn, row["enrollment_mailing_id"])
+
+            render_url = build_render_url(row["enrollment_mailing_id"], render_token or "dry-run-token")
+            row["render_url"] = render_url
+            mailing = as_mailing(row)
 
             if dry_run:
                 print(
                     "Dry run planned mailing "
                     f"{row['enrollment_mailing_id']}, enrollment {row['enrollment_id']}, "
                     f"mailing {mailing['id']}: "
-                    f"{build_campaign_merge_variables(contact, campaign, mailing)}"
+                    f"{build_campaign_merge_variables(contact, campaign, mailing)}, "
+                    f"render_url={render_url}"
                 )
                 continue
-
-            if rendered_html:
-                save_rendered_html(conn, row["enrollment_mailing_id"], rendered_html)
 
             delivery = ensure_delivery(conn, row)
             if delivery["status"] == "sent":

@@ -16,12 +16,15 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Validation\Rule;
 
 class PodCampaignMailingResource extends Resource
 {
@@ -48,6 +51,8 @@ class PodCampaignMailingResource extends Resource
                             ->relationship('campaign', 'name')
                             ->searchable()
                             ->preload()
+                            ->live()
+                            ->afterStateUpdated(fn (Set $set, $state): mixed => $set('sequence', static::nextSequenceForCampaign((int) $state)))
                             ->required(),
                         TextInput::make('name')
                             ->required()
@@ -55,12 +60,24 @@ class PodCampaignMailingResource extends Resource
                         TextInput::make('sequence')
                             ->numeric()
                             ->required()
-                            ->minValue(1),
+                            ->minValue(1)
+                            ->rules(fn (Get $get, ?PodCampaignMailing $record): array => [
+                                tap(Rule::unique('pod_campaign_mailings', 'sequence')
+                                    ->where('campaign_id', $get('campaign_id')), function ($rule) use ($record): void {
+                                        if ($record?->exists) {
+                                            $rule->ignore($record->getKey());
+                                        }
+                                    }),
+                            ])
+                            ->validationMessages([
+                                'unique' => 'This campaign already has a mailing with that sequence number. Use the next step number instead.',
+                            ]),
                         TextInput::make('delay_days_after_previous')
-                            ->label('Delay Days')
+                            ->label('Days After Previous Mailing')
                             ->numeric()
                             ->default(0)
-                            ->minValue(0),
+                            ->minValue(0)
+                            ->helperText('For sequence 1, use 0. For later steps, this is the wait after the previous mailing is sent before this step is scheduled.'),
                         Select::make('status')
                             ->options([
                                 'draft' => 'Draft',
@@ -114,9 +131,12 @@ class PodCampaignMailingResource extends Resource
                         Toggle::make('return_envelope')
                             ->default(true)
                             ->inline(false),
-                        TextInput::make('perforated_page')
-                            ->numeric()
-                            ->minValue(1),
+                        Toggle::make('perforated_page')
+                            ->label('Perforate First Page')
+                            ->helperText('Leave off for no perforated page. Turn on only when Lob should perforate page 1.')
+                            ->inline(false)
+                            ->formatStateUsing(fn ($state): bool => (int) $state === 1)
+                            ->dehydrateStateUsing(fn ($state): ?int => $state ? 1 : null),
                     ])
                     ->columns(2)
                     ->collapsible(),
@@ -227,5 +247,16 @@ class PodCampaignMailingResource extends Resource
             'create' => CreatePodCampaignMailing::route('/create'),
             'edit' => EditPodCampaignMailing::route('/{record}/edit'),
         ];
+    }
+
+    public static function nextSequenceForCampaign(?int $campaignId): int
+    {
+        if (! $campaignId) {
+            return 1;
+        }
+
+        return ((int) PodCampaignMailing::query()
+            ->where('campaign_id', $campaignId)
+            ->max('sequence')) + 1;
     }
 }

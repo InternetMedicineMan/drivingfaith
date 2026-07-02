@@ -66,6 +66,7 @@ DB_USERNAME = get_config_value("DB_USERNAME", default="")
 DB_PASSWORD = get_config_value("DB_PASSWORD", default="")
 
 LOB_API_KEY = get_config_value("LOB_API_KEY")
+LOB_PUBLIC_DOMAIN = get_config_value("LOB_PUBLIC_DOMAIN", default=get_config_value("APP_URL", default="")).rstrip("/")
 LOB_TEMPLATE_ID = get_config_value("LOB_INTRO_TEMPLATE_ID", default="tmpl_a36258afb8ff682")
 LOB_FROM_ADDRESS_ID = get_config_value("LOB_FROM_ADDRESS_ID", default="adr_3d00b791666b3b2a")
 
