@@ -10,8 +10,8 @@ from lob_python.model.merge_variables import MergeVariables
 from settings import LOB_API_KEY, LOB_FROM_ADDRESS_ID, LOB_TEMPLATE_ID
 
 
-def build_send_date() -> str:
-    return (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat().replace("+00:00", "Z")
+def build_send_date() -> datetime:
+    return datetime.now(timezone.utc) + timedelta(minutes=30)
 
 
 def build_contact_merge_variables(contact):
