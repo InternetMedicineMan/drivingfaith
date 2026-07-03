@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import lob_python
 from lob_python.api.letters_api import LettersApi
 from lob_python.model.address_editable import AddressEditable
@@ -6,6 +8,10 @@ from lob_python.model.ltr_use_type import LtrUseType
 from lob_python.model.merge_variables import MergeVariables
 
 from settings import LOB_API_KEY, LOB_FROM_ADDRESS_ID, LOB_TEMPLATE_ID
+
+
+def build_send_date() -> str:
+    return (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat().replace("+00:00", "Z")
 
 
 def build_contact_merge_variables(contact):
@@ -68,6 +74,7 @@ def send_intro_letter(contact):
         return_envelope=True,
         perforated_page=1,
         use_type=LtrUseType("marketing"),
+        send_date=build_send_date(),
     )
 
     with lob_python.ApiClient(configuration) as api_client:
@@ -97,6 +104,7 @@ def send_campaign_mailing(contact, campaign, mailing):
         return_envelope=bool(mailing["return_envelope"]),
         perforated_page=mailing["perforated_page"],
         use_type=LtrUseType(mailing["mail_class"] or "marketing"),
+        send_date=build_send_date(),
     )
 
     with lob_python.ApiClient(configuration) as api_client:
