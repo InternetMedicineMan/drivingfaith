@@ -776,6 +776,11 @@ def parse_args():
         action="store_true",
         help="Send real letters. Without this flag, the script runs as a dry run.",
     )
+    parser.add_argument(
+        "--prepare-render-urls",
+        action="store_true",
+        help="During a dry run, create missing render tokens so printed render URLs can be opened and tested.",
+    )
     args = parser.parse_args()
 
     if args.limit is not None and args.limit < 1:
@@ -788,6 +793,7 @@ def run():
     args = parse_args()
     limit = None if args.all else args.limit
     dry_run = not args.send
+    should_prepare_render_urls = args.send or args.prepare_render_urls
 
     sent_count = 0
     skipped_count = 0
@@ -826,20 +832,21 @@ def run():
                 continue
 
             render_token = row.get("render_token")
-            if not dry_run:
+            if should_prepare_render_urls:
                 render_token = ensure_render_token(conn, row["enrollment_mailing_id"])
 
-            render_url = build_render_url(row["enrollment_mailing_id"], render_token or "dry-run-token")
+            render_url = build_render_url(row["enrollment_mailing_id"], render_token) if render_token else None
             row["render_url"] = render_url
             mailing = as_mailing(row)
 
             if dry_run:
+                render_url_summary = render_url or "not prepared; rerun with --prepare-render-urls to create a testable URL"
                 print(
                     "Dry run planned mailing "
                     f"{row['enrollment_mailing_id']}, enrollment {row['enrollment_id']}, "
                     f"mailing {mailing['id']}: "
                     f"{build_campaign_merge_variables(contact, campaign, mailing)}, "
-                    f"render_url={render_url}"
+                    f"render_url={render_url_summary}"
                 )
                 continue
 
