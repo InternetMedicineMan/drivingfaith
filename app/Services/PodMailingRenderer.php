@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PodEnrollmentMailing;
+use App\Models\PodPrintLayoutTemplate;
 use RuntimeException;
 
 class PodMailingRenderer
@@ -12,6 +13,7 @@ class PodMailingRenderer
         $enrollmentMailing->loadMissing([
             'campaignMailing.pages',
             'campaignMailing.coverLetterTemplate',
+            'campaignMailing.printLayoutTemplate',
             'contact',
             'enrollment.campaign',
             'overrideCoverLetterTemplate',
@@ -44,7 +46,7 @@ class PodMailingRenderer
             throw new RuntimeException('This planned mailing does not have cover letter or page HTML to render.');
         }
 
-        return implode("\n", $parts);
+        return $this->wrapContent(implode("\n", $parts), $enrollmentMailing);
     }
 
     /**
@@ -117,5 +119,59 @@ class PodMailingRenderer
             fn (array $match): string => e($variables[$match[1]]),
             $template,
         ) ?? $template;
+    }
+
+    private function wrapContent(string $content, PodEnrollmentMailing $enrollmentMailing): string
+    {
+        $layout = $enrollmentMailing->campaignMailing?->printLayoutTemplate
+            ?: $this->defaultLetterLayout($enrollmentMailing);
+
+        if (! $layout) {
+            return $this->fallbackShell($content);
+        }
+
+        if (! str_contains($layout->html_shell, '{{ content }}')) {
+            throw new RuntimeException("Print layout {$layout->name} must include a {{ content }} placeholder.");
+        }
+
+        return str($layout->html_shell)
+            ->replace('{{ css }}', $layout->css ?? '')
+            ->replace('{{ content }}', $content)
+            ->toString();
+    }
+
+    private function defaultLetterLayout(PodEnrollmentMailing $enrollmentMailing): ?PodPrintLayoutTemplate
+    {
+        $teamId = $enrollmentMailing->team_id;
+
+        return PodPrintLayoutTemplate::query()
+            ->where('mailing_format', 'letter')
+            ->where('slot', 'letter_file')
+            ->where('status', 'active')
+            ->where(function ($query) use ($teamId): void {
+                $query->where('scope', 'system')
+                    ->orWhere(function ($query) use ($teamId): void {
+                        $query->where('scope', 'team')
+                            ->where('team_id', $teamId);
+                    });
+            })
+            ->orderByRaw("CASE WHEN scope = 'team' THEN 0 ELSE 1 END")
+            ->orderBy('name')
+            ->first();
+    }
+
+    private function fallbackShell(string $content): string
+    {
+        return <<<HTML
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+</head>
+<body>
+    {$content}
+</body>
+</html>
+HTML;
     }
 }

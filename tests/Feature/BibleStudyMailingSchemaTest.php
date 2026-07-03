@@ -31,8 +31,19 @@ it('creates the bible study mailing schema', function () {
             'delay_days_after_previous',
             'pause_until_reply',
             'cover_letter_template_id',
+            'print_layout_template_id',
             'bible_study_template_id',
             'provider_template_id',
+        ]))->toBeTrue()
+        ->and(Schema::hasTable('pod_print_layout_templates'))->toBeTrue()
+        ->and(Schema::hasColumns('pod_print_layout_templates', [
+            'team_id',
+            'scope',
+            'name',
+            'mailing_format',
+            'slot',
+            'html_shell',
+            'css',
         ]))->toBeTrue()
         ->and(Schema::hasTable('pod_campaign_mailing_pages'))->toBeTrue()
         ->and(Schema::hasColumns('pod_campaign_mailing_pages', [

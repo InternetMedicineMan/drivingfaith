@@ -32,7 +32,14 @@
    - Decrement credits for POD mailings and other per-event costs, with ledger entries tied back to the delivery or usage record.
    - Keep internal/self mailings possible without billing the current ministry account while the system is still private.
 
-5. Add custom domain mapping.
+5. Preserve multi-artifact rendering support for future POD formats.
+   - Letters and Bible studies render one complete remote file URL for Lob.
+   - Postcards should render two separate remote file URLs: one for `front` and one for `back`.
+   - Each postcard side can use the same or different print layout shell, but each side still has a simple `{{ content }}` slot.
+   - Do not model postcards as two regions inside one HTML document; Lob expects separate front/back artwork sources.
+   - Current letter work may use one selected `letter_file` layout, but naming and renderer boundaries should leave room for `postcard_front` and `postcard_back` rendered artifacts later.
+
+6. Add custom domain mapping.
    - Start with team-owned verified domains.
    - Resolve a team from the host when appropriate.
    - Consider full tenancy only if domain mapping is not enough.

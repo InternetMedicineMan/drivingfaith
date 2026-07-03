@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\PodCampaigns\RelationManagers;
 
 use App\Models\PodCampaignMailing;
+use App\Models\PodPrintLayoutTemplate;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -70,6 +71,12 @@ class MailingsRelationManager extends RelationManager
                     ->relationship('coverLetterTemplate', 'name', fn ($query) => $query->where('type', 'cover_letter'))
                     ->searchable()
                     ->preload(),
+                Select::make('print_layout_template_id')
+                    ->label('Print Layout')
+                    ->options(fn (RelationManager $livewire): array => static::printLayoutOptions($livewire->getOwnerRecord()?->team_id))
+                    ->searchable()
+                    ->preload()
+                    ->helperText('Wraps the complete cover letter and lesson content before Lob fetches the render URL.'),
                 Textarea::make('description')
                     ->rows(3)
                     ->columnSpanFull(),
@@ -140,5 +147,30 @@ class MailingsRelationManager extends RelationManager
         return ((int) PodCampaignMailing::query()
             ->where('campaign_id', $campaignId)
             ->max('sequence')) + 1;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function printLayoutOptions(?int $teamId): array
+    {
+        return PodPrintLayoutTemplate::query()
+            ->where('mailing_format', 'letter')
+            ->where('slot', 'letter_file')
+            ->where('status', 'active')
+            ->where(function ($query) use ($teamId): void {
+                $query->where('scope', 'system')
+                    ->orWhere(function ($query) use ($teamId): void {
+                        $query->where('scope', 'team');
+
+                        $teamId
+                            ? $query->where('team_id', $teamId)
+                            : $query->whereRaw('1 = 0');
+                    });
+            })
+            ->orderByRaw("CASE WHEN scope = 'team' THEN 0 ELSE 1 END")
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
     }
 }

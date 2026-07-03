@@ -17,6 +17,7 @@ class PodCampaignMailing extends Model
         'delay_days_after_previous',
         'pause_until_reply',
         'cover_letter_template_id',
+        'print_layout_template_id',
         'bible_study_template_id',
         'status',
         'description',
@@ -50,6 +51,11 @@ class PodCampaignMailing extends Model
     public function coverLetterTemplate(): BelongsTo
     {
         return $this->belongsTo(PodContentTemplate::class, 'cover_letter_template_id');
+    }
+
+    public function printLayoutTemplate(): BelongsTo
+    {
+        return $this->belongsTo(PodPrintLayoutTemplate::class, 'print_layout_template_id');
     }
 
     public function bibleStudyTemplate(): BelongsTo

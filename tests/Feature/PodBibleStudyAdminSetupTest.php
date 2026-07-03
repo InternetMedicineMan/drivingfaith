@@ -5,6 +5,7 @@ use App\Filament\Resources\PodCampaignEnrollments\PodCampaignEnrollmentResource;
 use App\Filament\Resources\PodCampaignMailings\PodCampaignMailingResource;
 use App\Filament\Resources\PodCampaigns\PodCampaignResource;
 use App\Filament\Resources\PodContentTemplates\PodContentTemplateResource;
+use App\Filament\Resources\PodPrintLayoutTemplates\PodPrintLayoutTemplateResource;
 use App\Filament\Resources\Teams\TeamResource;
 use App\Models\MinistryContact;
 use App\Models\MinistryContactEvent;
@@ -15,6 +16,7 @@ use App\Models\PodCampaignMailing;
 use App\Models\PodCampaignMailingPage;
 use App\Models\PodContentTemplate;
 use App\Models\PodEnrollmentMailing;
+use App\Models\PodPrintLayoutTemplate;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -130,6 +132,7 @@ it('models a team scoped bible study pod campaign setup', function () {
     $this->get("/pod/render/enrollment-mailings/{$plannedMailing->id}?token=test-render-token")
         ->assertOk()
         ->assertHeader('Content-Type', 'text/html; charset=UTF-8')
+        ->assertSee('<!doctype html>', false)
         ->assertSee('Hello Ada', false)
         ->assertSee('Romans lesson content for Ada', false);
 
@@ -142,6 +145,7 @@ it('models a team scoped bible study pod campaign setup', function () {
         ->and($contact->events->first()->team_id)->toBe($team->id)
         ->and($campaign->mailings)->toHaveCount(1)
         ->and(PodCampaignMailingResource::nextSequenceForCampaign($campaign->id))->toBe(2)
+        ->and(PodPrintLayoutTemplate::query()->where('scope', 'system')->where('slot', 'letter_file')->count())->toBe(1)
         ->and($mailing->perforated_page)->toBeNull()
         ->and($mailing->pages)->toHaveCount(1)
         ->and($mailing->coverLetterTemplate->is($coverLetter))->toBeTrue()
@@ -156,6 +160,7 @@ it('places pod bible study admin resources under ministry module navigation', fu
         ->and(PodCampaignResource::getNavigationGroup())->toBe('Ministry Modules')
         ->and(PodCampaignResource::getNavigationLabel())->toBe('Bible Study Campaigns')
         ->and(PodContentTemplateResource::getNavigationParentItem())->toBe('Bible Study Campaigns')
+        ->and(PodPrintLayoutTemplateResource::getNavigationParentItem())->toBe('Bible Study Campaigns')
         ->and(PodCampaignMailingResource::getNavigationParentItem())->toBe('Bible Study Campaigns')
         ->and(MinistryContactResource::getNavigationGroup())->toBe('People & Outreach')
         ->and(PodCampaignEnrollmentResource::getNavigationParentItem())->toBe('Bible Study Campaigns');
@@ -181,6 +186,8 @@ it('renders the ministry pod admin pages for admins', function (string $path) {
     '/admin/pod-campaigns/create',
     '/admin/pod-content-templates',
     '/admin/pod-content-templates/create',
+    '/admin/pod-print-layout-templates',
+    '/admin/pod-print-layout-templates/create',
     '/admin/pod-campaign-mailings',
     '/admin/pod-campaign-mailings/create',
     '/admin/ministry-contacts',

@@ -81,7 +81,7 @@ def send_campaign_mailing(contact, campaign, mailing):
 
     mailing_file = mailing.get("render_url") or mailing.get("rendered_html") or mailing.get("provider_template_id")
     if not mailing_file:
-        raise RuntimeError(f"Mailing {mailing['id']} is missing rendered_html or provider_template_id.")
+        raise RuntimeError(f"Mailing {mailing['id']} is missing render_url, rendered_html, or provider_template_id.")
 
     configuration = lob_python.Configuration(username=LOB_API_KEY)
 
