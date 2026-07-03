@@ -119,6 +119,19 @@ def fetch_enrollments_for_campaign(conn, campaign_id):
     return cursor.fetchall()
 
 
+def fetch_active_campaigns(conn):
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id, name
+        FROM pod_campaigns
+        WHERE status = 'active'
+        ORDER BY id
+        """,
+    )
+    return cursor.fetchall()
+
+
 def fetch_pod_campaign_mailings(conn, campaign_id):
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
@@ -247,6 +260,18 @@ def plan_campaign(conn, campaign_id):
         planned_count += plan_enrollment(conn, enrollment["id"])
 
     return planned_count
+
+
+def plan_active_campaigns(conn):
+    campaigns = fetch_active_campaigns(conn)
+    planned_count = 0
+
+    for campaign in campaigns:
+        campaign_planned_count = plan_campaign(conn, campaign["id"])
+        planned_count += campaign_planned_count
+        print(f"Ensured {campaign_planned_count} planned mailing(s) for campaign {campaign['id']} ({campaign['name']}).")
+
+    return len(campaigns), planned_count
 
 
 def build_render_variables(contact):
@@ -760,6 +785,11 @@ def parse_args():
         help="Create planned mailing rows for every enrollment in one campaign.",
     )
     parser.add_argument(
+        "--plan-active-campaigns",
+        action="store_true",
+        help="Create planned mailing rows for every enrollment in every active campaign.",
+    )
+    parser.add_argument(
         "--record-reply",
         type=int,
         metavar="ENROLLMENT_ID",
@@ -809,6 +839,11 @@ def run():
         if args.plan_campaign is not None:
             planned_count = plan_campaign(conn, args.plan_campaign)
             print(f"Ensured {planned_count} planned mailing(s) for campaign {args.plan_campaign}.")
+            return
+
+        if args.plan_active_campaigns:
+            campaign_count, planned_count = plan_active_campaigns(conn)
+            print(f"Ensured {planned_count} planned mailing(s) across {campaign_count} active campaign(s).")
             return
 
         if args.record_reply is not None:

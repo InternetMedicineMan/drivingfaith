@@ -10,7 +10,20 @@ This folder contains Python scripts that support Laravel Driving Faith app integ
 
 The Laravel app is the primary project. Python lives under `integrations` and shares Laravel's `.env` file, database, and deployment foundation.
 
-The current POD mailer workflow does not generate PDFs locally. Mailer HTML/templates are sent to the mail/POD service, and that service generates the print-ready PDF output on its side.
+The current POD mailer workflow does not generate PDFs locally. Laravel renders dynamic HTML documents at public tokenized render URLs, Python sends those URLs to Lob, and Lob generates the print-ready PDF output on its side.
+
+## POD Bible Study Campaign Workflow
+
+- Laravel owns the admin UI, teams/ministry groups, contacts, campaigns, campaign mailing steps, print layout templates, enrollments, planned mailing records, and dynamic render URLs.
+- Python owns operational mail processing: planning enrollment mailings, selecting due mailings, calling Lob, recording deliveries/failures, and advancing enrollment state.
+- Do not assume this workflow must be rebuilt as Laravel console commands. The established entrypoint is `python -m pod.send_campaign_mailings` from the `integrations` directory.
+- Planning is idempotent. Re-running `python -m pod.send_campaign_mailings --plan-campaign CAMPAIGN_ID` ensures missing `pod_enrollment_mailings` rows exist for all enrollments in that campaign without duplicating existing planned rows.
+- For production cron, prefer `python -m pod.send_campaign_mailings --plan-active-campaigns` or `integrations/bin/run_pod_campaign_mailings.sh` so new active campaigns do not require new cron entries.
+- Sending is also guarded by delivery state. `python -m pod.send_campaign_mailings --all --send` processes due planned mailings and skips deliveries already marked sent.
+- Dry runs are default. Use `--prepare-render-urls` to create real render tokens/URLs for inspection without sending to Lob.
+- Real mail requires `--send`.
+- Laravel render URLs use `LOB_PUBLIC_DOMAIN`, not necessarily local `APP_URL`, because Lob must fetch the HTML from a public URL.
+- Letters/Bible studies use one rendered artifact URL. Future postcards must use separate rendered artifact URLs for front and back.
 
 ---
 

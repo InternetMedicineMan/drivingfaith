@@ -36,6 +36,17 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - Check for existing components to reuse before writing a new one.
 - For feature modules that own several related database tables, use a short, meaningful table prefix to keep the schema grouped and discoverable. For example, Print on Demand tables should use the `pod_` prefix.
 
+## POD / Bible Study Operational Architecture
+- This project has an established Python integration layer in `integrations/`. Do not assume all POD work must be implemented as Laravel console commands.
+- Laravel owns the admin UI, teams/ministry groups, contacts, campaigns, campaign mailing steps, print layout templates, enrollments, planned mailing rows, and dynamic HTML render routes.
+- Python owns operational POD processing through `python -m pod.send_campaign_mailings`: planning enrollment mailings, selecting due mailings, calling Lob, recording deliveries/failures, and advancing enrollment state.
+- Planning is idempotent: `python -m pod.send_campaign_mailings --plan-campaign CAMPAIGN_ID` ensures missing planned rows exist without duplicating existing planned rows.
+- Production cron should use `python -m pod.send_campaign_mailings --plan-active-campaigns` or `integrations/bin/run_pod_campaign_mailings.sh` so new active campaigns do not require new cron entries.
+- Sending is explicit: dry runs are default; real Lob sends require `--send`.
+- Use `--prepare-render-urls` during dry runs when a real tokenized render URL is needed for inspection.
+- `LOB_PUBLIC_DOMAIN` is the public Laravel domain used in render URLs that Lob can fetch. It may differ from local `APP_URL`.
+- Letters/Bible studies currently use one rendered artifact URL. Future postcards must preserve separate rendered artifact URLs for front and back.
+
 ## Verification Scripts
 - Do not create verification scripts or tinker when tests cover that functionality and prove it works. Unit and feature tests are more important.
 
